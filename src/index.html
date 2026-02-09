@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cargando...</title>
+    <link id="favicon" rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>">
+    
+    <style>
+        /* --- ESTILOS GENERALES --- */
+        :root { --p: #2563eb; --bg: #f8fafc; --card: #ffffff; --txt-main: #0f172a; --txt-sec: #64748b; --border: #e2e8f0; --shadow: 0 4px 6px -1px rgba(0,0,0,0.1); --input-bg: #ffffff; }
+        body.dark-mode { --bg: #0f172a; --card: #1e293b; --txt-main: #f1f5f9; --txt-sec: #94a3b8; --border: #334155; --shadow: 0 4px 10px rgba(0,0,0,0.5); --input-bg: #1e293b; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--txt-main); margin: 0; padding: 15px; padding-bottom: 80px; transition: 0.3s; }
+        * { box-sizing: border-box; }
+
+        /* HEADER */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .identity { display: flex; align-items: center; gap: 15px; cursor: pointer; flex-grow: 1; }
+        .logo-emoji { font-size: 2.5rem; line-height: 1; }
+        .logo-img { width: 50px; height: 50px; border-radius: 12px; object-fit: cover; display: none; box-shadow: var(--shadow); }
+        .titles h1 { font-size: 1.4rem; margin: 0; font-weight: 800; line-height: 1.1; }
+        .titles p { font-size: 0.85rem; color: var(--txt-sec); margin: 0; margin-top: 4px; font-weight: 500; }
+        
+        /* BOTONES HEADER */
+        .header-actions { display: flex; gap: 10px; }
+        .icon-btn { background: transparent; border: 1px solid var(--border); color: var(--txt-main); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; padding: 0; }
+        .icon-btn svg { width: 20px; height: 20px; stroke-width: 2; }
+        .icon-btn:active { transform: scale(0.9); background: var(--border); }
+
+        /* CONTROLES */
+        .controls { position: sticky; top: 0; background: var(--bg); padding-bottom: 10px; z-index: 100; transition: background 0.3s; }
+        .search-row { display: flex; gap: 10px; }
+        input[type="text"] { flex-grow: 1; padding: 12px 15px; border-radius: 12px; border: 1px solid var(--border); background: var(--input-bg); color: var(--txt-main); font-size: 16px; outline: none; box-shadow: var(--shadow); transition: 0.2s; }
+        input[type="text"]:focus { border-color: var(--p); transform: scale(1.01); }
+        .btn-filter { width: 48px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; box-shadow: var(--shadow); color: var(--txt-main); position: relative; }
+        .btn-filter.active::after { content: ''; position: absolute; top: 10px; right: 10px; width: 8px; height: 8px; background: var(--p); border-radius: 50%; }
+
+        #activeFilter { display: none; margin-top: 10px; animation: slideDown 0.2s ease; }
+        .filter-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--p); color: white; padding: 6px 14px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* TARJETAS */
+        .grid { display: grid; gap: 15px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+        .card { background: var(--card); border-radius: 16px; border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow); animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .media-area { background: transparent; min-height: 200px; display: flex; justify-content: center; align-items: center; }
+        .card-img { width: 100%; height: 200px; object-fit: contain; display: block; }
+        .card-vid { width: 100%; aspect-ratio: 16/9; background: black; border: none; }
+        
+        .content { padding: 15px; }
+        .word-head { font-size: 1.3rem; font-weight: 800; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .cat-badge { font-size: 0.7rem; background: var(--bg); color: var(--p); padding: 3px 8px; border-radius: 6px; text-transform: uppercase; font-weight: 700; border: 1px solid var(--border); }
+        
+        .v-list { list-style: none; padding: 0; margin: 0; }
+        .v-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .v-item:last-child { border-bottom: none; }
+        .lang-tag { font-size: 0.65rem; font-weight: 800; color: var(--txt-sec); text-transform: uppercase; display: block; margin-bottom: 2px; }
+        .v-text { font-size: 1.1rem; font-weight: 600; display: block; }
+        .v-def { font-size: 0.9rem; color: var(--txt-sec); display: block; margin-top: 2px; }
+
+        /* BOTONES FLOTANTES */
+        .fab { position: fixed; bottom: 20px; right: 20px; width: 56px; height: 56px; background: var(--p); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; box-shadow: 0 4px 15px rgba(0,0,0,0.3); cursor: pointer; z-index: 900; transition: transform 0.2s; }
+        .fab:active { transform: scale(0.9); }
+        .play-btn { background: var(--bg); border: 1px solid var(--border); color: var(--txt-main); width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; margin-left: 10px; flex-shrink: 0; }
+        .play-btn.playing { background: var(--p); color: white; border-color: var(--p); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0,0,0,0.2); } 70% { box-shadow: 0 0 0 8px rgba(0,0,0,0); } }
+
+        /* MODALES */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; justify-content: center; align-items: flex-end; backdrop-filter: blur(3px); }
+        .sheet-box { background: var(--card); width: 100%; max-width: 600px; height: 70vh; border-radius: 20px 20px 0 0; padding: 20px; display: flex; flex-direction: column; animation: slideUp 0.3s ease; box-shadow: 0 -5px 25px rgba(0,0,0,0.2); }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .sheet-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+        .sheet-title { margin: 0; font-size: 1.2rem; font-weight: 800; }
+        
+        .lang-list { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .lang-option { padding: 15px; background: var(--bg); border-radius: 12px; border: 1px solid var(--border); cursor: pointer; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+        .lang-option.selected { border-color: var(--p); background: rgba(37,99,235,0.1); color: var(--p); }
+
+        .cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; overflow-y: auto; padding-bottom: 20px; }
+        .cat-item { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 15px 10px; text-align: center; cursor: pointer; transition: 0.2s; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .cat-item-img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: #ddd; }
+        
+        .modal-center { align-items: center; }
+        .center-box { background: var(--card); padding: 30px; border-radius: 20px; width: 85%; max-width: 350px; text-align: center; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .modal-btn { background: var(--p); color: white; border: none; padding: 12px; width: 100%; border-radius: 10px; font-weight: bold; margin-top: 15px; cursor: pointer; }
+        .modal-btn-sec { background: transparent; color: var(--txt-main); border: 1px solid var(--border); margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="modalLang" class="modal">
+        <div class="sheet-box" style="height:50vh;">
+            <div class="sheet-header"><h3 class="sheet-title">🌐 Idioma Principal</h3><span style="font-size:1.5rem;cursor:pointer" onclick="cerrarLang()">✕</span></div>
+            <div id="langList" class="lang-list"></div>
+        </div>
+    </div>
+
+    <div id="modalCat" class="modal">
+        <div class="sheet-box">
+            <div class="sheet-header"><h3 class="sheet-title">📂 Categorías</h3><span style="font-size:1.5rem;cursor:pointer" onclick="cerrarCat()">✕</span></div>
+            <input type="text" id="catSearch" placeholder="🔍 Buscar..." oninput="filtrarListaCategorias()" style="margin-bottom:15px; width:100%; padding:10px; border-radius:10px; border:1px solid var(--border); background:var(--input-bg); color:var(--txt-main);">
+            <div id="catGrid" class="cat-grid"></div>
+        </div>
+    </div>
+
+    <div id="modalConfig" class="modal modal-center">
+        <div class="center-box">
+            <h2>🔌 Conectar</h2>
+            <input type="text" id="urlInput" placeholder="URL Script..." style="width:100%;">
+            <button class="modal-btn" onclick="guardarConfig()">Guardar</button>
+            <button class="modal-btn modal-btn-sec" onclick="cerrarConfig()" id="btnCancelConfig" style="display:none;">Cancelar</button>
+        </div>
+    </div>
+
+    <div class="header">
+        <div class="identity" onclick="adminTrigger()">
+            <div id="logoArea"><span class="logo-emoji">📚</span><img id="logoImg" class="logo-img"></div>
+            <div class="titles"><h1 id="appTitle">Glosario</h1><p id="appSubtitle">Cargando...</p></div>
+        </div>
+        
+        <div class="header-actions">
+            <button class="icon-btn" onclick="abrirLang()" title="Cambiar Idioma">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
+            </button>
+            <button class="icon-btn" onclick="toggleTheme()" title="Modo Oscuro" style="font-size:1.2rem;">🌗</button>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="search-row">
+            <input type="text" id="search" placeholder="🔍 Buscar palabra..." oninput="filtrar()">
+            <div class="btn-filter" onclick="abrirCat()" title="Filtrar">📂</div>
+        </div>
+        <div id="activeFilter"><div class="filter-chip"><span id="activeCatText">Cat</span><span style="cursor:pointer;opacity:0.8" onclick="limpiarCat()"> ✕</span></div></div>
+    </div>
+
+    <div id="loading" style="text-align:center; margin-top:60px; color:var(--txt-sec);">🚀 Conectando...</div>
+    <div id="container" class="grid"></div>
+    <div class="fab" onclick="randomCard()">🎲</div>
+
+    <script>
+        let API_URL = localStorage.getItem('glosario_api');
+        let dataGlobal = [];
+        let dataProcesada = [];
+        let categoriasGlobal = [];
+        let idiomasMap = {};
+        let configGlobal = {}; 
+        let currentAudio = null;
+        let catActual = 'all';
+        let clickCount = 0;
+        let userLang = localStorage.getItem('user_lang_pref');
+
+        function init() {
+            if (localStorage.getItem('user_theme') === 'dark') document.body.classList.add('dark-mode');
+            
+            // Intento de carga (Online u Offline)
+            if (!API_URL) {
+                document.getElementById('modalConfig').style.display = 'flex';
+                document.getElementById('btnCancelConfig').style.display = 'none';
+            } else {
+                cargarDatos();
+            }
+        }
+
+        async function cargarDatos() {
+            try {
+                // 1. INTENTO ONLINE
+                const res = await fetch(API_URL);
+                const json = await res.json();
+                
+                // Backup automático
+                localStorage.setItem('glosario_backup', JSON.stringify(json));
+                localStorage.setItem('glosario_last_update', new Date().toLocaleString());
+                
+                procesarDatos(json);
+
+            } catch (e) {
+                // 2. INTENTO OFFLINE
+                console.warn("Modo Offline", e);
+                const backup = localStorage.getItem('glosario_backup');
+                
+                if (backup) {
+                    mostrarAvisoOffline();
+                    procesarDatos(JSON.parse(backup));
+                } else {
+                    document.getElementById('loading').innerHTML = `⚠️ Sin conexión y sin datos.<br><br><button onclick="abrirConfig()">Configurar</button>`;
+                }
+            }
+        }
+
+        function procesarDatos(json) {
+            configGlobal = json.config || {};
+            aplicarEstilos(configGlobal);
+            
+            if (!userLang) userLang = configGlobal.idiomaPrincipal || "Español";
+
+            if(json.idiomas) {
+                idiomasMap = {};
+                json.idiomas.forEach(i => idiomasMap[i.id_idioma] = { nom: i.nombre_completo, iso: i.codigo_iso });
+            }
+            
+            dataGlobal = json.traducciones || [];
+            dataProcesada = procesar(dataGlobal);
+
+            if(json.categorias) {
+                categoriasGlobal = json.categorias.sort((a,b)=>a.nombre.localeCompare(b.nombre));
+            }
+            
+            renderIdiomasMenu();
+            document.getElementById('loading').style.display = 'none';
+            filtrar();
+        }
+
+        function mostrarAvisoOffline() {
+            const fecha = localStorage.getItem('glosario_last_update') || "?";
+            const div = document.createElement('div');
+            div.style.cssText = "position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#333; color:white; padding:10px 20px; border-radius:30px; font-size:0.85rem; box-shadow:0 4px 15px rgba(0,0,0,0.3); z-index:1000; display:flex; gap:10px; align-items:center; width:max-content; max-width:90%;";
+            div.innerHTML = `<span>📡 Modo Sin Conexión (${fecha})</span> <span style="cursor:pointer; font-weight:bold;" onclick="this.parentElement.remove()">✕</span>`;
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 5000);
+        }
+
+        // --- IDIOMAS ---
+        function renderIdiomasMenu() {
+            const list = document.getElementById('langList'); list.innerHTML = "";
+            // Filtro de seguridad por si no hay idiomas cargados
+            const idiomasUnicos = Object.values(idiomasMap).map(i => i.nom).sort();
+            idiomasUnicos.forEach(idioma => {
+                const btn = document.createElement('div');
+                btn.className = `lang-option ${idioma === userLang ? 'selected' : ''}`;
+                btn.innerHTML = `<span>${idioma}</span> ${idioma === userLang ? '✔' : ''}`;
+                btn.onclick = () => cambiarIdiomaUsuario(idioma);
+                list.appendChild(btn);
+            });
+        }
+
+        function cambiarIdiomaUsuario(idioma) {
+            userLang = idioma;
+            localStorage.setItem('user_lang_pref', idioma);
+            dataProcesada = procesar(dataGlobal);
+            cerrarLang(); renderIdiomasMenu(); filtrar();
+            window.scrollTo({top:0, behavior:'smooth'});
+        }
+        function abrirLang() { document.getElementById('modalLang').style.display = 'flex'; }
+        function cerrarLang() { document.getElementById('modalLang').style.display = 'none'; }
+
+        // --- PROCESAMIENTO ---
+        function procesar(lista) { 
+            const agrupado = {};
+            const idiomaPref = (userLang || "").toLowerCase().trim();
+
+            lista.forEach(t => {
+                const id = t.id_palabra;
+                const infoI = idiomasMap[t.id_idioma] || { nom: "...", iso: "" };
+                const nomIdioma = infoI.nom.toLowerCase();
+                const esPrincipal = nomIdioma === idiomaPref;
+                const esEspanol = infoI.iso === 'es' || nomIdioma.includes('español');
+
+                if (!agrupado[id]) agrupado[id] = { id, titulo: "...", tituloIdioma: "", img: "", vid: "", cat: t.categoria||"General", vars: [] };
+
+                if (esPrincipal) {
+                    agrupado[id].titulo = t.texto; agrupado[id].tituloIdioma = "principal";
+                    if(t.imagen) agrupado[id].img = t.imagen; if(t.video) agrupado[id].vid = t.video;
+                } else if (esEspanol && agrupado[id].tituloIdioma !== "principal") {
+                    agrupado[id].titulo = t.texto; agrupado[id].tituloIdioma = "espanol";
+                    if(t.imagen) agrupado[id].img = t.imagen; if(t.video) agrupado[id].vid = t.video;
+                } else if (agrupado[id].titulo === "...") {
+                    agrupado[id].titulo = t.texto;
+                    if(t.imagen) agrupado[id].img = t.imagen;
+                }
+                
+                if (!agrupado[id].img && t.imagen) agrupado[id].img = t.imagen;
+                if (!agrupado[id].vid && t.video) agrupado[id].vid = t.video;
+
+                t.nomIdioma = infoI.nom; agrupado[id].vars.push(t);
+            });
+            return Object.values(agrupado).filter(i => i.titulo !== "...");
+        }
+
+        // --- RENDER ---
+        function render(lista) { 
+             const cont = document.getElementById('container'); cont.innerHTML = "";
+             if (lista.length === 0) { cont.innerHTML = `<div style="text-align:center; color:var(--txt-sec); grid-column:1/-1; padding:20px;">Sin resultados</div>`; return; }
+             
+             lista.forEach(item => {
+                const card = document.createElement('div'); card.className = 'card';
+                let media = "";
+                // Manejo de errores visuales en offline
+                if(item.vid) { 
+                    let id = item.vid.split('v=')[1] || item.vid.split('/').pop();
+                    if(id) media=`<iframe class="card-vid" src="https://www.youtube.com/embed/${id.split('&')[0]}" allowfullscreen></iframe>`;
+                } else if(item.img) { 
+                    media=`<img src="${item.img}" class="card-img" loading="lazy" onerror="this.style.display='none'">`; 
+                }
+                
+                item.vars.sort((a,b)=>a.nomIdioma.localeCompare(b.nomIdioma));
+                const varsHTML = item.vars.map((v,i)=> {
+                    const uid=`btn-${item.id}-${i}`;
+                    return `<li class="v-item"><div><span class="lang-tag">${v.nomIdioma}</span><span class="v-text">${v.texto}</span>${v.definicion?`<span class="v-def">${v.definicion}</span>`:''}</div>
+                    ${v.audio?`<button id="${uid}" class="play-btn" onclick="playAudio('${v.audio}','${uid}')">▶</button>`:''}</li>`;
+                }).join('');
+                
+                card.innerHTML = `<div class="media-area">${media}</div><div class="content"><div class="word-head">${item.titulo}<span class="cat-badge">${item.cat}</span></div><ul class="v-list">${varsHTML}</ul></div>`;
+                cont.appendChild(card);
+             });
+        }
+        
+        function filtrar() { 
+            const txt = document.getElementById('search').value.toLowerCase();
+            const res = dataProcesada.filter(i => (i.titulo.toLowerCase().includes(txt) || i.vars.some(v=>v.texto.toLowerCase().includes(txt))) && (catActual==='all' || i.cat===catActual));
+            render(res);
+        }
+
+        async function playAudio(file, btnId) {
+            const btn = document.getElementById(btnId);
+            if(currentAudio){ currentAudio.pause(); document.querySelectorAll('.playing').forEach(b=>{b.classList.remove('playing');b.innerHTML='▶'}); if(btn.classList.contains('playing'))return; }
+            try { 
+                btn.classList.add('loading'); btn.innerHTML='⏳';
+                const res = await fetch(`${API_URL}?type=audio&file=${encodeURIComponent(file)}`);
+                const json = await res.json();
+                if(json.status==='ok'){ currentAudio=new Audio(json.audioData); currentAudio.onended=()=>{btn.classList.remove('playing');btn.innerHTML='▶'}; btn.classList.remove('loading');btn.classList.add('playing');btn.innerHTML='⏸'; await currentAudio.play(); }
+                else throw new Error();
+            } catch(e){ 
+                // Error offline visual
+                btn.classList.remove('loading'); 
+                btn.innerHTML='⚠️'; 
+                setTimeout(()=>btn.innerHTML='▶', 1500); 
+            }
+        }
+
+        // --- UTILIDADES ---
+        function adminTrigger() { clickCount++; if(clickCount>=5){abrirConfig();clickCount=0;} setTimeout(()=>clickCount=0,2000); }
+        function toggleTheme() { document.body.classList.toggle('dark-mode'); localStorage.setItem('user_theme', document.body.classList.contains('dark-mode')?'dark':'light'); }
+        
+        function aplicarEstilos(cfg) {
+            if(!cfg) return;
+            if(cfg.titulo) { document.title = cfg.titulo; document.getElementById('appTitle').innerText = cfg.titulo; }
+            if(cfg.subtitulo) document.getElementById('appSubtitle').innerText = cfg.subtitulo;
+            if(cfg.color) document.documentElement.style.setProperty('--p', cfg.color);
+            if(cfg.tema==='Oscuro') { document.body.classList.add('dark-mode'); localStorage.setItem('user_theme', 'dark'); }
+            if(cfg.logo && cfg.logo.startsWith('http')) { document.querySelector('.logo-emoji').style.display='none'; document.getElementById('logoImg').src=cfg.logo; document.getElementById('logoImg').style.display='block'; }
+        }
+
+        // Categorías
+        function abrirCat() { document.getElementById('modalCat').style.display='flex'; document.getElementById('catSearch').value=''; renderListaCategorias(categoriasGlobal); }
+        function cerrarCat() { document.getElementById('modalCat').style.display='none'; }
+        function renderListaCategorias(lista) {
+            const grid = document.getElementById('catGrid'); grid.innerHTML = "";
+            const allBtn = document.createElement('div'); allBtn.className='cat-item'; allBtn.innerHTML=`<div class="cat-item-img" style="background:var(--p);color:white;display:flex;justify-content:center;align-items:center;">∞</div><span>Todas</span>`;
+            allBtn.onclick=()=>{limpiarCat();cerrarCat();}; grid.appendChild(allBtn);
+            lista.forEach(c => {
+                const item = document.createElement('div'); item.className='cat-item';
+                const img = c.img?`<img src="${c.img}" class="cat-item-img">`:`<div class="cat-item-img" style="display:flex;justify-content:center;align-items:center;">📂</div>`;
+                item.innerHTML=`${img}<span>${c.nombre}</span>`;
+                item.onclick=()=>{seleccionarCat(c.nombre);cerrarCat();}; grid.appendChild(item);
+            });
+        }
+        function filtrarListaCategorias() { const txt=document.getElementById('catSearch').value.toLowerCase(); renderListaCategorias(categoriasGlobal.filter(c=>c.nombre.toLowerCase().includes(txt))); }
+        function seleccionarCat(n) { catActual=n; document.getElementById('activeCatText').innerText=n; document.getElementById('activeFilter').style.display='block'; document.querySelector('.btn-filter').classList.add('active'); filtrar(); }
+        function limpiarCat() { catActual='all'; document.getElementById('activeFilter').style.display='none'; document.querySelector('.btn-filter').classList.remove('active'); filtrar(); }
+        function randomCard() { if(dataGlobal.length>0){const r=dataGlobal[Math.floor(Math.random()*dataGlobal.length)]; document.getElementById('search').value=r.titulo; limpiarCat(); filtrar(); window.scrollTo({top:0,behavior:'smooth'});}}
+        
+        // Config
+        function abrirConfig() { 
+            document.getElementById('urlInput').value=API_URL||''; 
+            document.getElementById('modalConfig').style.display='flex'; 
+            document.getElementById('btnCancelConfig').style.display = API_URL ? 'block' : 'none';
+        }
+        function cerrarConfig() { document.getElementById('modalConfig').style.display='none'; }
+        function guardarConfig() {
+            let url = document.getElementById('urlInput').value.trim();
+            if(url.includes('/edit')||url.includes('/dev')) try{url=url.split('/s/')[0]+'/s/'+url.split('/s/')[1].split('/')[0]+'/exec';}catch(e){}
+            if(!url.includes('script.google.com')){document.getElementById('urlError').style.display='block';return;}
+            localStorage.setItem('glosario_api',url); API_URL=url; location.reload();
+        }
+
+        init();
+    </script>
+        <div style="margin-top: 50px; padding: 30px 20px; text-align: center; border-top: 1px solid var(--border); color: var(--txt-sec); font-size: 0.9rem;">
+        <p style="margin: 0 0 8px 0;">
+            Diseño e Implementación: <strong style="color: var(--txt-main);">Alejandro Estrada</strong>
+        </p>
+        <p style="margin: 0 0 15px 0; font-size: 0.8rem; opacity: 0.7;">
+            ✨ Ingeniería asistida por IA · Tepic, Nayarit
+        </p>
+        
+        <a href="https://github.com/joalesmu/Glosario_Multiling-e_Comunitario" target="_blank" 
+           style="display: inline-flex; align-items: center; gap: 8px; color: var(--p); text-decoration: none; font-weight: 600; background: var(--bg); padding: 10px 20px; border-radius: 50px; border: 1px solid var(--border); box-shadow: var(--shadow); transition: transform 0.2s;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+            Código Abierto en GitHub
+        </a>
+    </div>
+</body>
+</html>

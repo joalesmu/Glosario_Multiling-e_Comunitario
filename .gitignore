@@ -1,0 +1,21 @@
+# --- ARCHIVOS DE SISTEMA (Basura) ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- CONFIGURACIÓN DE EDITOR ---
+.vscode/
+
+# --- ARCHIVOS COMPRIMIDOS ---
+# (El Kit final se sube a Releases, no al código fuente)
+*.zip
+*.rar
+*.7z
+
+# --- LOGS Y TEMPORALES ---
+*.log
+npm-debug.log*
+
+# --- CARPETA PRIVADA ---
+# Aquí puedes guardar tus guías, borradores o capturas sin editar
+LOCAL/
