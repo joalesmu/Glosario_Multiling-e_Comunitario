@@ -20,7 +20,6 @@ Este repositorio organiza los recursos necesarios para implementar el sistema:
 
 * **`/src`:** Código fuente del sistema (`.gs`) y Visor Web (`.html`).
 * **`/docs`:** Manuales de usuario, guías de instalación y plantillas de datos.
-* **`/img`:** Recursos gráficos y capturas de pantalla.
 
 ## 🛠️ Instalación
 
