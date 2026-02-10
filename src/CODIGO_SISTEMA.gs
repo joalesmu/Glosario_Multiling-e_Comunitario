@@ -1,6 +1,6 @@
 // =============================================================
 // 📘 GLOSARIO MULTIMEDIA COMUNITARIO - V1.0
-// Autor: Alejandro Estrada | Versión: FINAL
+// Autor: Alejandro Estrada | Versión: FINAL REVISADA
 // =============================================================
 
 // --- CONSTANTES DE HOJAS ---
@@ -128,8 +128,12 @@ function crearEstructuraCarpetas() {
   const hojaConfig = ss.getSheetByName(HOJA_CONFIG); 
   
   const vals = hojaConfig.getDataRange().getValues();
-  if (vals.length > 1 && vals[1][0] && vals[1][1]) {
-    ui.alert('⚠️ Ya existe una configuración. Si continúas, podrías duplicar carpetas.');
+  
+  // VERIFICACIÓN INTELIGENTE:
+  // Solo se detiene si la Columna D (Índice 3) ya tiene datos.
+  // Esto permite tener datos precargados en A, B y C.
+  if (vals.length > 1 && vals[1][3] && vals[1][3] !== "") {
+    ui.alert('⚠️ Ya existe una configuración de carpetas (Columna D). Si continúas, podrías duplicarlas.');
     return;
   }
 
@@ -354,9 +358,13 @@ function obtenerConfig(ss) {
   if (data.length < 2) return {};
   const h = data[0], v = data[1];
   const getVal = (name) => { const i = h.indexOf(name); return i > -1 ? String(v[i]) : ""; };
+  
   return { 
-    audios: getVal(COL_AUDIO), imagenes: getVal(COL_IMG), 
-    titulo: getVal('NOMBRE_PROYECTO'), idiomaPrincipal: getVal('IDIOMA_PRINCIPAL')
+    audios: getVal(COL_AUDIO), 
+    imagenes: getVal(COL_IMG), 
+    titulo: getVal('NOMBRE_PROYECTO'), 
+    subtitulo: getVal('SUBTITULO'), 
+    idiomaPrincipal: getVal('IDIOMA_PRINCIPAL')
   };
 }
 
