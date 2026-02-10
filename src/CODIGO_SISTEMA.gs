@@ -1,6 +1,6 @@
 // =============================================================
 // 📘 GLOSARIO MULTIMEDIA COMUNITARIO - V1.0
-// Autor: Alejandro Estrada | Versión: FINAL REVISADA
+// Autor: Alejandro Estrada | Versión: FINAL
 // =============================================================
 
 // --- CONSTANTES DE HOJAS ---
@@ -56,7 +56,6 @@ function servirTodo(ss, config) {
       const infoCat = dicCategorias[infoPalabra.id_categoria];
       if (infoCat) {
         catNombre = infoCat.nombre_categoria;
-        // CORRECCIÓN: Lee 'imagen_portada' (o 'imagen' por compatibilidad)
         catImg = procesarLinkImagen(infoCat.imagen_portada || infoCat.imagen); 
       }
       imgRef = procesarLinkImagen(infoPalabra.imagen_referencia);
@@ -69,6 +68,7 @@ function servirTodo(ss, config) {
       texto: row.texto,
       definicion: row.definicion,
       audio: row.audio,
+      variante: row.nota_variante,
       categoria: catNombre,
       cat_img: catImg,
       imagen: imgRef,
