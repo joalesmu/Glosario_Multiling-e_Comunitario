@@ -8,8 +8,8 @@
     
     <style>
         /* --- ESTILOS GENERALES --- */
-        :root { --p: #2563eb; --bg: #f8fafc; --card: #ffffff; --txt-main: #0f172a; --txt-sec: #64748b; --border: #e2e8f0; --shadow: 0 4px 6px -1px rgba(0,0,0,0.1); --input-bg: #ffffff; }
-        body.dark-mode { --bg: #0f172a; --card: #1e293b; --txt-main: #f1f5f9; --txt-sec: #94a3b8; --border: #334155; --shadow: 0 4px 10px rgba(0,0,0,0.5); --input-bg: #1e293b; }
+        :root { --p: #2563eb; --bg: #f8fafc; --card: #ffffff; --txt-main: #0f172a; --txt-sec: #64748b; --border: #e2e8f0; --shadow: 0 4px 6px -1px rgba(0,0,0,0.1); --input-bg: #ffffff; --var-color: #d97706; }
+        body.dark-mode { --bg: #0f172a; --card: #1e293b; --txt-main: #f1f5f9; --txt-sec: #94a3b8; --border: #334155; --shadow: 0 4px 10px rgba(0,0,0,0.5); --input-bg: #1e293b; --var-color: #fbbf24; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--txt-main); margin: 0; padding: 15px; padding-bottom: 80px; transition: 0.3s; }
         * { box-sizing: border-box; }
 
@@ -57,6 +57,7 @@
         .v-item:last-child { border-bottom: none; }
         .lang-tag { font-size: 0.65rem; font-weight: 800; color: var(--txt-sec); text-transform: uppercase; display: block; margin-bottom: 2px; }
         .v-text { font-size: 1.1rem; font-weight: 600; display: block; }
+        .v-var { font-size: 0.85em; color: var(--var-color); font-weight: normal; margin-left: 6px; } /* Estilo para la variante */
         .v-def { font-size: 0.9rem; color: var(--txt-sec); display: block; margin-top: 2px; }
 
         /* BOTONES FLOTANTES */
@@ -297,8 +298,18 @@
                 item.vars.sort((a,b)=>a.nomIdioma.localeCompare(b.nomIdioma));
                 const varsHTML = item.vars.map((v,i)=> {
                     const uid=`btn-${item.id}-${i}`;
-                    return `<li class="v-item"><div><span class="lang-tag">${v.nomIdioma}</span><span class="v-text">${v.texto}</span>${v.definicion?`<span class="v-def">${v.definicion}</span>`:''}</div>
-                    ${v.audio?`<button id="${uid}" class="play-btn" onclick="playAudio('${v.audio}','${uid}')">▶</button>`:''}</li>`;
+                    // ✨ AQUÍ ESTÁ EL CAMBIO PARA MOSTRAR LA VARIANTE ✨
+                    return `<li class="v-item">
+                        <div>
+                            <span class="lang-tag">${v.nomIdioma}</span>
+                            <span class="v-text">
+                                ${v.texto}
+                                ${v.variante ? `<span class="v-var">(${v.variante})</span>` : ''}
+                            </span>
+                            ${v.definicion ? `<span class="v-def">${v.definicion}</span>` : ''}
+                        </div>
+                        ${v.audio ? `<button id="${uid}" class="play-btn" onclick="playAudio('${v.audio}','${uid}')">▶</button>` : ''}
+                    </li>`;
                 }).join('');
                 
                 card.innerHTML = `<div class="media-area">${media}</div><div class="content"><div class="word-head">${item.titulo}<span class="cat-badge">${item.cat}</span></div><ul class="v-list">${varsHTML}</ul></div>`;
