@@ -1,4 +1,4 @@
-# 🌿 Glosario Multimedia Comunitario (Uso Sin Internet)
+# 🌿 Glosario Multimedia Comunitario (con opción de uso Sin Internet)
 
 > **Versión:** 1.0  
 > **Licencia:** MIT (Código Abierto)  
