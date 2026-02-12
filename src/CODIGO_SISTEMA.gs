@@ -1,6 +1,6 @@
 // =============================================================
 // 📘 GLOSARIO MULTIMEDIA COMUNITARIO - V1.0
-// Autor: Alejandro Estrada | Versión: FINAL
+// Autor: Alejandro Estrada | Versión: BETA
 // =============================================================
 
 // --- CONSTANTES DE HOJAS ---
@@ -16,7 +16,7 @@ const COL_IMG = 'ID_CARPETA_IMAGENES';
 const COL_CAT = 'ID_CARPETA_CATEGORIAS';
 
 // =============================================================
-// 🚀 1. API WEB (Conexión con el Visor HTML)
+// 🚀 1. API WEB
 // =============================================================
 
 function doGet(e) {
@@ -24,15 +24,11 @@ function doGet(e) {
   const config = obtenerConfig(ss);
   
   if (!config.audios || !config.imagenes) {
-    return json({ status: "error", msg: "⚠️ Faltan configurar las carpetas. Ejecuta la Instalación en el menú Glosario." });
+    return json({ status: "error", msg: "⚠️ Faltan configurar las carpetas." });
   }
 
   const p = e.parameter;
-
-  if (p.type === 'audio' && p.file) {
-    return servirAudio(p.file, config.audios);
-  }
-
+  if (p.type === 'audio' && p.file) return servirAudio(p.file, config.audios);
   return servirTodo(ss, config);
 }
 
@@ -68,7 +64,7 @@ function servirTodo(ss, config) {
       texto: row.texto,
       definicion: row.definicion,
       audio: row.audio,
-      variante: row.nota_variante,
+      variante: row.nota_variante, 
       categoria: catNombre,
       cat_img: catImg,
       imagen: imgRef,
@@ -94,7 +90,6 @@ function servirAudio(fileName, folderId) {
     const cleanName = fileName.split('/').pop(); 
     const folder = DriveApp.getFolderById(folderId);
     const files = folder.getFilesByName(cleanName);
-    
     if (files.hasNext()) {
       const file = files.next();
       const bytes = file.getBlob().getBytes();
@@ -110,41 +105,86 @@ function servirAudio(fileName, folderId) {
 // =============================================================
 
 function onOpen() {
-  SpreadsheetApp.getUi()
-    .createMenu('🔹 GLOSARIO 🔹')
+  SpreadsheetApp.getUi().createMenu('🔹 GLOSARIO 🔹')
     .addItem('🚀 1. Instalación Automática', 'crearEstructuraCarpetas')
     .addSeparator()
-    .addItem('📄 Obtener Plantilla de Importación', 'generarPlantilla')
-    .addItem('📥 Importar Datos (Fusión Inteligente)', 'interfazImportacion')
+    .addItem('📄 Obtener Plantilla', 'generarPlantilla')
+    .addItem('📥 Importar (Fusión Inteligente)', 'interfazImportacion')
     .addSeparator()
-    .addItem('📤 Exportar Respaldo (Excel)', 'exportarExcel')
-    .addItem('🔗 Obtener URL App Web', 'mostrarUrlWebApp')
+    .addItem('🧹 Corregir Tipografía (+ ➝ ɨ)', 'corregirTipografiaMasiva') // <--- NUEVO BOTÓN
+    .addSeparator()
+    .addItem('📤 Exportar Excel', 'exportarExcel')
+    .addItem('🔗 Ver URL App', 'mostrarUrlWebApp')
     .addToUi();
+}
+
+// --- HERRAMIENTA DE CORRECCIÓN ---
+function corregirTipografiaMasiva() {
+  const ui = SpreadsheetApp.getUi();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(HOJA_TRADUCCIONES);
+  
+  if (!sheet) return ui.alert("No encuentro la hoja TRADUCCIONES.");
+  
+  // Confirmación
+  if (ui.alert('🧹 Corrector Tipográfico', 'Esto buscará el símbolo "+" en toda la hoja de Traducciones y lo cambiará por "ɨ".\n\n¿Continuar?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) return; // Solo encabezados
+
+  const headers = data[0];
+  const idxTexto = headers.indexOf('texto');
+  const idxDef = headers.indexOf('definicion');
+
+  if (idxTexto === -1) return ui.alert("Error: No encuentro la columna 'texto'");
+
+  let cambios = 0;
+  
+  // Recorremos y reemplazamos en memoria
+  for (let i = 1; i < data.length; i++) {
+    // Corregir Texto
+    let txt = String(data[i][idxTexto]);
+    if (txt.includes('+')) {
+      data[i][idxTexto] = txt.replace(/\+/g, 'ɨ');
+      cambios++;
+    }
+    
+    // Corregir Definición (si existe)
+    if (idxDef > -1) {
+      let def = String(data[i][idxDef]);
+      if (def.includes('+')) {
+        data[i][idxDef] = def.replace(/\+/g, 'ɨ');
+        cambios++; // Contamos también estos cambios
+      }
+    }
+  }
+
+  if (cambios > 0) {
+    // Guardamos todo de golpe (rápido)
+    sheet.getDataRange().setValues(data);
+    ui.alert(`✅ ¡Listo! Se corrigieron ${cambios} textos.`);
+  } else {
+    ui.alert("👍 Todo está limpio. No se encontraron símbolos '+'.");
+  }
 }
 
 function crearEstructuraCarpetas() {
   const ui = SpreadsheetApp.getUi();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const hojaConfig = ss.getSheetByName(HOJA_CONFIG); 
-  
   const vals = hojaConfig.getDataRange().getValues();
   
-  // VERIFICACIÓN INTELIGENTE:
-  // Solo se detiene si la Columna D (Índice 3) ya tiene datos.
-  // Esto permite tener datos precargados en A, B y C.
   if (vals.length > 1 && vals[1][3] && vals[1][3] !== "") {
-    ui.alert('⚠️ Ya existe una configuración de carpetas (Columna D). Si continúas, podrías duplicarlas.');
+    ui.alert('⚠️ Ya existe configuración. Deteniendo para evitar duplicados.');
     return;
   }
-
-  if (ui.alert('🛠️ Instalación', 'Se crearán las carpetas en tu Google Drive.\n\n¿Continuar?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  if (ui.alert('🛠️ Instalación', '¿Crear carpetas en Drive?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
   
   try {
     ss.toast("Creando carpetas...");
     const nombreRaiz = "GLOSARIO_MULTIMEDIA_DATOS"; 
     const carpetaRaiz = DriveApp.createFolder(nombreRaiz);
     carpetaRaiz.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-
     const fAudios = carpetaRaiz.createFolder("Glosario_Audios");
     const fImg = carpetaRaiz.createFolder("Glosario_Imagenes");
     const fCat = carpetaRaiz.createFolder("Glosario_Categorias");
@@ -152,87 +192,65 @@ function crearEstructuraCarpetas() {
 
     const h = vals[0];
     const setID = (col, val) => { const idx = h.indexOf(col); if(idx>-1) hojaConfig.getRange(2, idx+1).setValue(val); };
-    setID(COL_AUDIO, fAudios.getId());
-    setID(COL_IMG, fImg.getId());
-    setID(COL_CAT, fCat.getId());
-    
-    ui.alert("✅ Instalación Exitosa.\nCarpetas creadas en: " + nombreRaiz);
+    setID(COL_AUDIO, fAudios.getId()); setID(COL_IMG, fImg.getId()); setID(COL_CAT, fCat.getId());
+    ui.alert("✅ Instalación Exitosa.");
   } catch (e) { ui.alert("Error: " + e.toString()); }
 }
 
 function mostrarUrlWebApp() {
   const url = ScriptApp.getService().getUrl();
-  const ui = SpreadsheetApp.getUi();
-  if (url) {
-    ui.alert("🔗 TU LLAVE MAESTRA (URL):\n\n" + url + "\n\nCopia esto y pégalo cuando el glosario te lo pida.");
-  } else {
-    ui.alert("⚠️ Aún no has implementado la App.\nVe a: Implementar > Nueva Implementación.");
-  }
+  SpreadsheetApp.getUi().alert(url ? "🔗 URL:\n" + url : "⚠️ Debes implementar la App primero.");
 }
 
 // =============================================================
-// 🔄 3. IMPORTACIÓN BLINDADA (Fusión de Datos)
+// 🔄 3. IMPORTACIÓN MAESTRA
 // =============================================================
 
 function generarPlantilla() {
-  const ss = SpreadsheetApp.create("Plantilla_Importacion_Glosario");
-  
-  // CORREGIDO: 'nombre_completo' en IDIOMAS y 'imagen_portada' en CATEGORIAS
+  const ss = SpreadsheetApp.create("Plantilla_Glosario");
   const esquemas = [
     { n: HOJA_IDIOMAS, c: ['id_idioma', 'nombre_completo', 'codigo_iso'] },
     { n: HOJA_CATEGORIAS, c: ['id_categoria', 'nombre_categoria', 'imagen_portada'] },
     { n: HOJA_PALABRAS, c: ['id_palabra', 'id_categoria', 'imagen_referencia', 'video_referencia'] },
     { n: HOJA_TRADUCCIONES, c: ['id_traduccion', 'id_palabra', 'id_idioma', 'texto', 'definicion', 'audio', 'nota_variante'] }
   ];
-
   esquemas.forEach(e => {
-    let h = ss.getSheetByName(e.n);
-    if (!h) h = ss.insertSheet(e.n);
-    h.clear();
-    h.getRange(1, 1, 1, e.c.length).setValues([e.c]).setFontWeight("bold").setBackground("#cfe2f3");
+    let h = ss.getSheetByName(e.n); if (!h) h = ss.insertSheet(e.n);
+    h.clear(); h.getRange(1, 1, 1, e.c.length).setValues([e.c]).setFontWeight("bold").setBackground("#cfe2f3");
   });
-  
   const h1 = ss.getSheetByName("Hoja 1"); if(h1) ss.deleteSheet(h1);
-
-  const html = HtmlService.createHtmlOutput(`
-    <div style="font-family:sans-serif; text-align:center; padding:20px;">
-      <p>✅ Plantilla creada.</p>
-      <p>Copia tus datos aquí y luego usa la opción "Importar".</p>
-      <a href="${ss.getUrl()}" target="_blank" style="background:#16a34a; color:white; padding:10px; text-decoration:none; border-radius:5px;">📂 Abrir Plantilla</a>
-    </div>
-  `).setWidth(350).setHeight(200);
-  SpreadsheetApp.getUi().showModalDialog(html, 'Plantilla Lista');
+  const html = HtmlService.createHtmlOutput(`<div style="font-family:sans-serif;text-align:center;padding:20px;"><a href="${ss.getUrl()}" target="_blank" style="background:#16a34a;color:white;padding:10px;text-decoration:none;border-radius:5px;">📂 Abrir Plantilla</a></div>`).setWidth(300).setHeight(150);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Plantilla');
 }
 
 function interfazImportacion() {
    const html = HtmlService.createHtmlOutput(`
      <div style="font-family:sans-serif; padding:15px;">
        <h3 style="margin-top:0;">🤝 Fusión Inteligente</h3>
-       <p style="font-size:12px;">Pega la URL de la Plantilla o Glosario externo:</p>
+       <p style="font-size:12px;">URL de Plantilla o Glosario:</p>
        <input id="url" placeholder="https://docs.google.com..." style="width:100%;margin-bottom:10px;padding:8px;">
        <button id="btn" onclick="run()" style="background:#2563eb;color:white;border:none;padding:10px;width:100%;cursor:pointer;">INICIAR FUSIÓN</button>
        <p id="st" style="font-size:11px;color:#555;margin-top:10px;"></p>
        <script>
          function run() {
            const u = document.getElementById('url').value;
-           if(!u) return alert("Falta la URL");
-           document.getElementById('btn').innerText = '⏳ Procesando...';
-           document.getElementById('btn').disabled = true;
-           google.script.run
-             .withSuccessHandler(r => { document.getElementById('btn').innerText='✅ Completado'; document.getElementById('st').innerText=r; })
+           if(!u) return alert("Falta URL");
+           document.getElementById('btn').innerText = '⏳ Analizando...'; document.getElementById('btn').disabled = true;
+           google.script.run.withSuccessHandler(r => { document.getElementById('btn').innerText='✅ Listo'; document.getElementById('st').innerText=r; })
              .withFailureHandler(e => { document.getElementById('btn').innerText='❌ Error'; document.getElementById('st').innerText=e; document.getElementById('btn').disabled=false; })
              .importarBlindado(u);
          }
        </script></div>`).setWidth(380).setHeight(280);
-   SpreadsheetApp.getUi().showModalDialog(html, 'Importar Datos');
+   SpreadsheetApp.getUi().showModalDialog(html, 'Importar');
 }
 
 function importarBlindado(urlOrigen) {
   const ssDst = SpreadsheetApp.getActiveSpreadsheet();
   const ssSrc = SpreadsheetApp.openByUrl(urlOrigen);
   const uid = () => Utilities.getUuid();
-  const clean = (t) => String(t || "").toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  
+  // Auto-corrección al importar
+  const clean = (t) => String(t || "").toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\+/g, 'i'); 
+
   const leer = (ss, nombre) => {
     const h = ss.getSheetByName(nombre); if (!h) return [];
     const d = h.getDataRange().getValues(); if (d.length < 2) return [];
@@ -240,21 +258,35 @@ function importarBlindado(urlOrigen) {
     return d.slice(1).map(r => { let o={}; heads.forEach((k,i)=>o[k]=String(r[i])); return o; });
   };
 
-  const mapLang = {}, mapCat = {}, mapConceptos = {};
+  const dstLang = leer(ssDst, HOJA_IDIOMAS);
+  const dstTrad = leer(ssDst, HOJA_TRADUCCIONES);
   
-  // CORRECCIÓN: Busca 'nombre_completo'
-  leer(ssDst, HOJA_IDIOMAS).forEach(r => mapLang[clean(r.nombre_completo || r.nombre_idioma)] = r.id_idioma);
-  leer(ssDst, HOJA_CATEGORIAS).forEach(r => mapCat[clean(r.nombre_categoria)] = r.id_categoria);
-  
-  let idEsp = "";
-  for(let k in mapLang) if(k.includes("espanol") || k.includes("castellano")) idEsp = mapLang[k];
-  
-  if(idEsp) {
-    leer(ssDst, HOJA_TRADUCCIONES).forEach(t => { 
-      if(t.id_idioma === idEsp) mapConceptos[clean(t.texto)] = t.id_palabra; 
+  const mapLangDst = {};
+  let idEspDst = null;
+  dstLang.forEach(r => {
+    const n = clean(r.nombre_completo || r.nombre_idioma);
+    mapLangDst[n] = r.id_idioma;
+    if (n.includes('espanol') || n.includes('castellano') || r.codigo_iso === 'es') idEspDst = r.id_idioma;
+  });
+
+  const mapaConceptosExistentes = {};
+  if (idEspDst) {
+    dstTrad.forEach(t => {
+      if (t.id_idioma === idEspDst) {
+        mapaConceptosExistentes[clean(t.texto)] = t.id_palabra;
+      }
     });
   }
 
+  const firmasTraducciones = new Set();
+  dstTrad.forEach(t => {
+    firmasTraducciones.add(`${t.id_palabra}_${t.id_idioma}_${clean(t.texto)}`);
+  });
+
+  const mapaCategoriasDst = {};
+  leer(ssDst, HOJA_CATEGORIAS).forEach(r => mapaCategoriasDst[clean(r.nombre_categoria)] = r.id_categoria);
+
+  // --- LEER ORIGEN ---
   const srcLang = leer(ssSrc, HOJA_IDIOMAS);
   const srcCat = leer(ssSrc, HOJA_CATEGORIAS);
   const srcPal = leer(ssSrc, HOJA_PALABRAS);
@@ -262,136 +294,116 @@ function importarBlindado(urlOrigen) {
 
   const newL=[], newC=[], newP=[], newT=[];
   const mapIdL={}, mapIdC={};
-  let skipped = 0;
 
-  // PROCESAR IDIOMAS
   srcLang.forEach(i => {
-    // CORRECCIÓN: Prioriza 'nombre_completo'
-    const name = i.nombre_completo || i.nombre_idioma;
-    if(!name) { skipped++; return; }
+    const name = i.nombre_completo || i.nombre_idioma; if(!name) return;
     const n = clean(name);
-    if(mapLang[n]) mapIdL[i.id_idioma] = mapLang[n];
-    else { const id = uid(); mapIdL[i.id_idioma]=id; mapLang[n]=id; newL.push([id, name, i.codigo_iso||""]); }
-  });
-
-  // PROCESAR CATEGORIAS
-  let idGeneral = mapCat["general"];
-  if(!idGeneral) { idGeneral=uid(); mapCat["general"]=idGeneral; newC.push([idGeneral, "General", ""]); }
-
-  srcCat.forEach(c => {
-    const name = c.nombre_categoria;
-    if(!name) { mapIdC[c.id_categoria] = idGeneral; return; }
-    const n = clean(name);
-    if(mapCat[n]) mapIdC[c.id_categoria] = mapCat[n];
-    else { 
-      const id = uid(); 
-      mapIdC[c.id_categoria]=id; mapCat[n]=id; 
-      // CORRECCIÓN: Prioriza 'imagen_portada'
-      const imgVal = c.imagen_portada || c.imagen || "";
-      newC.push([id, name, imgVal]); 
+    if(mapLangDst[n]) {
+      mapIdL[i.id_idioma] = mapLangDst[n];
+    } else {
+      const finalId = uid(); mapIdL[i.id_idioma] = finalId; mapLangDst[n] = finalId;
+      newL.push([finalId, name, i.codigo_iso||""]);
     }
   });
 
-  // PROCESAR PALABRAS
+  let idGeneral = mapaCategoriasDst["general"];
+  if(!idGeneral) { idGeneral="general"; mapaCategoriasDst["general"]=idGeneral; newC.push(["general", "General", ""]); }
+  
+  srcCat.forEach(c => {
+    const name = c.nombre_categoria; if(!name) { mapIdC[c.id_categoria]=idGeneral; return; }
+    const n = clean(name);
+    if(mapaCategoriasDst[n]) {
+      mapIdC[c.id_categoria] = mapaCategoriasDst[n];
+    } else {
+      const finalId = uid(); mapIdC[c.id_categoria] = finalId; mapaCategoriasDst[n] = finalId;
+      newC.push([finalId, name, c.imagen_portada||""]);
+    }
+  });
+
   const groups = {};
-  srcPal.forEach(p => groups[p.id_palabra] = { p: p, t: [] });
-  srcTrad.forEach(t => { if(groups[t.id_palabra]) groups[t.id_palabra].t.push(t); });
+  srcPal.forEach(p => { if(p.id_palabra && p.id_palabra!=="") groups[p.id_palabra] = { p:p, t:[] }; });
+  srcTrad.forEach(t => { if(t.id_palabra && groups[t.id_palabra]) groups[t.id_palabra].t.push(t); });
 
   for (let pid in groups) {
     const g = groups[pid];
-    if(g.t.length === 0) continue;
+    const tradsValidas = g.t.filter(t => t.texto && String(t.texto).trim() !== "");
+    if (tradsValidas.length === 0) continue;
 
-    const esTrad = g.t.find(t => {
+    let palabraEsp = tradsValidas.find(t => {
       const lid = mapIdL[t.id_idioma];
-      const srcLName = srcLang.find(l => l.id_idioma == t.id_idioma);
-      const n = clean(srcLName ? (srcLName.nombre_completo || srcLName.nombre_idioma) : "");
-      return n.includes("espanol") || n.includes("castellano");
+      return lid === idEspDst; 
     });
 
-    let finalPid = "";
+    let finalPid = null;
+    let esNuevaPalabra = true;
 
-    if (esTrad && mapConceptos[clean(esTrad.texto)]) {
-      finalPid = mapConceptos[clean(esTrad.texto)];
+    if (palabraEsp && mapaConceptosExistentes[clean(palabraEsp.texto)]) {
+      finalPid = mapaConceptosExistentes[clean(palabraEsp.texto)];
+      esNuevaPalabra = false;
     } else {
       finalPid = uid();
-      const catId = mapIdC[g.p.id_categoria] || idGeneral;
-      newP.push([finalPid, catId, g.p.imagen_referencia||"", g.p.video_referencia||""]);
-      if (esTrad) mapConceptos[clean(esTrad.texto)] = finalPid;
+      esNuevaPalabra = true;
+      if (palabraEsp) mapaConceptosExistentes[clean(palabraEsp.texto)] = finalPid;
     }
 
-    g.t.forEach(t => {
-      if (!t.texto) return;
+    if (esNuevaPalabra) {
+      const catId = mapIdC[g.p.id_categoria] || idGeneral;
+      newP.push([finalPid, catId, g.p.imagen_referencia||"", g.p.video_referencia||""]);
+    }
+
+    tradsValidas.forEach(t => {
       const lid = mapIdL[t.id_idioma];
-      if (lid) newT.push([uid(), finalPid, lid, t.texto, t.definicion||"", t.audio||"", t.nota_variante||""]);
+      if (lid) {
+        // CORRECCIÓN TIPOGRÁFICA AL IMPORTAR
+        const textoReal = String(t.texto).replace(/\+/g, 'ɨ');
+        const defReal = String(t.definicion || "").replace(/\+/g, 'ɨ');
+
+        const firma = `${finalPid}_${lid}_${clean(textoReal)}`;
+        
+        if (!firmasTraducciones.has(firma)) {
+          const tradId = uid();
+          newT.push([tradId, finalPid, lid, textoReal, defReal, t.audio||"", t.nota_variante||""]);
+          firmasTraducciones.add(firma);
+        }
+      }
     });
   }
 
   const append = (n, d) => { if(d.length) ssDst.getSheetByName(n).getRange(ssDst.getSheetByName(n).getLastRow()+1,1,d.length,d[0].length).setValues(d); };
-  
-  append(HOJA_IDIOMAS, newL);
-  append(HOJA_CATEGORIAS, newC);
-  append(HOJA_PALABRAS, newP);
-  append(HOJA_TRADUCCIONES, newT);
+  append(HOJA_IDIOMAS, newL); append(HOJA_CATEGORIAS, newC); append(HOJA_PALABRAS, newP); append(HOJA_TRADUCCIONES, newT);
 
-  return `Proceso completado.\n+${newL.length} Idiomas\n+${newP.length} Palabras\n+${newT.length} Traducciones\n(Ignorados: ${skipped})`;
+  return `Importación V1.6 Completada.\n+${newL.length} Idiomas\n+${newP.length} Conceptos\n+${newT.length} Traducciones`;
 }
 
 // =============================================================
-// ⚙️ 4. UTILIDADES GENERALES
+// ⚙️ 4. UTILIDADES
 // =============================================================
 
 function exportarExcel() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const url = ss.getUrl().replace(/edit$/, 'export?format=xlsx');
-  const html = HtmlService.createHtmlOutput(`
-    <div style="font-family:sans-serif; text-align:center; padding:20px;">
-      <a href="${url}" target="_blank" style="background:#16a34a; color:white; padding:10px; text-decoration:none; border-radius:5px;">📥 Descargar Excel</a>
-    </div>
-  `).setWidth(300).setHeight(150);
-  SpreadsheetApp.getUi().showModalDialog(html, 'Respaldo Portátil');
+  const html = HtmlService.createHtmlOutput(`<div style="font-family:sans-serif;text-align:center;padding:20px;"><a href="${url}" target="_blank" style="background:#16a34a;color:white;padding:10px;text-decoration:none;border-radius:5px;">📥 Descargar Excel</a></div>`).setWidth(300).setHeight(150);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Respaldo');
 }
 
 function obtenerConfig(ss) {
-  const hoja = ss.getSheetByName(HOJA_CONFIG);
-  if (!hoja) return {};
-  const data = hoja.getDataRange().getValues();
-  if (data.length < 2) return {};
-  const h = data[0], v = data[1];
-  const getVal = (name) => { const i = h.indexOf(name); return i > -1 ? String(v[i]) : ""; };
-  
-  return { 
-    audios: getVal(COL_AUDIO), 
-    imagenes: getVal(COL_IMG), 
-    titulo: getVal('NOMBRE_PROYECTO'), 
-    subtitulo: getVal('SUBTITULO'), 
-    idiomaPrincipal: getVal('IDIOMA_PRINCIPAL')
-  };
+  const h = ss.getSheetByName(HOJA_CONFIG).getDataRange().getValues();
+  if (h.length < 2) return {};
+  const get = (k) => { const i = h[0].indexOf(k); return i > -1 ? String(h[1][i]) : ""; };
+  return { audios: get(COL_AUDIO), imagenes: get(COL_IMG), titulo: get('NOMBRE_PROYECTO'), subtitulo: get('SUBTITULO'), idiomaPrincipal: get('IDIOMA_PRINCIPAL') };
 }
 
-function procesarLinkImagen(valor) {
-  if (!valor) return "";
-  if (valor.toString().startsWith("http") && valor.includes("drive.google.com")) {
-    try { return "https://drive.google.com/thumbnail?id=" + valor.split("/d/")[1].split("/")[0] + "&sz=w400"; } catch(e){}
-  }
-  try {
-    const nombre = valor.split('/').pop(); 
-    const archivos = DriveApp.getFilesByName(nombre);
-    if (archivos.hasNext()) return "https://drive.google.com/thumbnail?id=" + archivos.next().getId() + "&sz=w400";
-  } catch (e) {}
+function procesarLinkImagen(v) {
+  if (!v) return "";
+  if (String(v).includes("drive.google.com")) try { return "https://drive.google.com/thumbnail?id=" + v.split("/d/")[1].split("/")[0] + "&sz=w400"; } catch(e){}
   return ""; 
 }
 
 function leerTablaSimple(ss, nombre) {
-  const hoja = ss.getSheetByName(nombre);
-  if (!hoja) return [];
-  const data = hoja.getDataRange().getValues();
-  if (data.length < 1) return [];
-  const headers = data[0];
-  return data.slice(1).map(row => {
-    let obj = {};
-    headers.forEach((h, i) => obj[h] = String(row[i]));
-    return obj;
-  });
+  const h = ss.getSheetByName(nombre); if (!h) return [];
+  const d = h.getDataRange().getValues(); if (d.length < 1) return [];
+  const heads = d[0];
+  return d.slice(1).map(r => { let o={}; heads.forEach((k,i)=>o[k]=String(r[i])); return o; });
 }
 
-function json(data) { return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON); }
+function json(d) { return ContentService.createTextOutput(JSON.stringify(d)).setMimeType(ContentService.MimeType.JSON); }

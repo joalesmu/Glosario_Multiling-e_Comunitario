@@ -1,6 +1,6 @@
 # 🌿 Glosario Multimedia Comunitario (con opción de uso Sin Internet)
 
-> **Versión:** 1.0  
+> **Versión:** 0.9 beta 
 > **Licencia:** MIT (Código Abierto)  
 > **México | 2026**
 
