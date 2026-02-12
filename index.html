@@ -370,7 +370,7 @@
         function filtrarListaCategorias() { const txt=document.getElementById('catSearch').value.toLowerCase(); renderListaCategorias(categoriasGlobal.filter(c=>c.nombre.toLowerCase().includes(txt))); }
         function seleccionarCat(n) { catActual=n; document.getElementById('activeCatText').innerText=n; document.getElementById('activeFilter').style.display='block'; document.querySelector('.btn-filter').classList.add('active'); filtrar(); }
         function limpiarCat() { catActual='all'; document.getElementById('activeFilter').style.display='none'; document.querySelector('.btn-filter').classList.remove('active'); filtrar(); }
-        function randomCard() { if(dataGlobal.length>0){const r=dataGlobal[Math.floor(Math.random()*dataGlobal.length)]; document.getElementById('search').value=r.titulo; limpiarCat(); filtrar(); window.scrollTo({top:0,behavior:'smooth'});}}
+        function randomCard() { if(dataProcesada.length>0){const r=dataProcesada[Math.floor(Math.random()*dataProcesada.length)]; document.getElementById('search').value=r.titulo; limpiarCat(); filtrar(); window.scrollTo({top:0,behavior:'smooth'});}}
         
         // Config
         function abrirConfig() { 
