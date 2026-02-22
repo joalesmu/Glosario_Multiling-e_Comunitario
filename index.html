@@ -434,9 +434,17 @@ const UI = {
         if(window.activeGame){ window.activeGame.stop(); window.activeGame=null; }
     },
     initSelectors(langs) {
-        const s=document.getElementById('main-lang-selector');
-        s.innerHTML='<option value="original">Español (Base)</option>';
-        langs.forEach(l=>s.innerHTML+=`<option value="${l.id_idioma}">${l.nombre_completo||l.nombre||l.id_idioma}</option>`);
+        const s = document.getElementById('main-lang-selector');
+        s.innerHTML = ''; 
+        langs.forEach(l => {
+            const name = l.nombre_completo || l.nombre || l.id_idioma;
+            const isMain = String(l.id_idioma) === String(Core.mainLangId);
+            s.innerHTML += `<option value="${l.id_idioma}" ${isMain ? 'selected' : ''}>${name}</option>`;
+        });
+
+        if (s.innerHTML === '') {
+            s.innerHTML = '<option value="original">Español</option>';
+        }
         UI.updateCatSelector();
     },
     updateCatSelector() {
