@@ -129,6 +129,13 @@
         /* Ficha de palabra */
         .ficha-img { width:100%; max-height:280px; object-fit:contain; border-radius:14px; background:#f1f5f9; cursor:zoom-in; display:block; margin-bottom:12px; }
         .trad { background:var(--bg-body); padding:12px; margin-bottom:8px; border-radius:12px; border:1px solid var(--border); }
+        .relacionadas { margin:12px 0 4px; border-top:1px solid var(--border, #e2e8f0); padding-top:8px; }
+        .relacionadas h3 { margin:0 0 6px; font-size:1em; }
+        .rel-g { margin:6px 0; }
+        .rel-g .l { font-size:0.74em; color:var(--text-sub); font-weight:800; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:3px; }
+        .rel-items { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+        .chip-rel { border:1px solid var(--border, #cbd5e1); background:var(--bg-card); color:inherit; border-radius:999px; padding:5px 12px; font:inherit; cursor:pointer; min-height:36px; }
+        .chip-rel:hover, .chip-rel:focus-visible { outline:2px solid var(--primary, #6366f1); outline-offset:1px; }
         .trad .l { font-size:0.74em; color:var(--text-sub); font-weight:800; text-transform:uppercase; letter-spacing:0.4px; }
         .trad .x { display:flex; justify-content:space-between; align-items:center; gap:10px; }
         .trad .x span { font-size:1.2em; font-weight:700; word-break:break-word; }
@@ -797,6 +804,22 @@ const V_ES = {
 "visor.pista": "Pista",
 "visor.puntos": "Puntos",
 "visor.puntosN": "{n} puntos",
+"visor.rel.antonimo": "Antónimo",
+"visor.rel.deriva_de": "Deriva de",
+"visor.rel.deriva_de.inv": "Da origen a",
+"visor.rel.homonimo": "Misma forma, otro significado",
+"visor.rel.inversaDe": "{nombre} (desde la otra palabra)",
+"visor.rel.parte_de": "Parte de",
+"visor.rel.parte_de.inv": "Tiene como parte",
+"visor.rel.relacionada": "Relacionada",
+"visor.rel.sinonimo": "Sinónimo",
+"visor.rel.tipo_de": "Es un tipo de",
+"visor.rel.tipo_de.inv": "Incluye",
+"visor.rel.unida": "Unida a",
+"visor.rel.unida.inv": "Reúne a",
+"visor.rel.variante_de": "Variante de",
+"visor.rel.variante_de.inv": "Tiene como variante",
+"visor.relacionadas": "Relacionadas",
 "visor.rep.avance": "*Tu avance:* {vistas} palabras vistas · {aprendidas} bien aprendidas",
 "visor.rep.borrar": "¿Borrar tu avance en esta lengua?",
 "visor.rep.d": "Ves la imagen (o escuchas, o lees en otra lengua) y recuerdas la palabra. Las que te cuestan vuelven pronto; las que ya sabes, después de unos días. Tu avance se guarda solo en este dispositivo.",
@@ -843,9 +866,16 @@ const V_ES = {
 "visor.sopa.chica": "Chica",
 "visor.sopa.completada": "¡Sopa completada!",
 "visor.sopa.d": "Desliza el dedo (o el ratón) sobre las letras. Vale en cualquier dirección.",
+"visor.sopa.dificil": "Difícil",
+"visor.sopa.dificil.d": "En diagonal y también al revés.",
 "visor.sopa.encontradas": "Encontradas: *{n}/{total}*",
+"visor.sopa.facil": "Fácil",
+"visor.sopa.facil.d": "Solo de izquierda a derecha y de arriba abajo.",
 "visor.sopa.grande": "Grande",
 "visor.sopa.mediana": "Mediana",
+"visor.sopa.nivel": "Dificultad",
+"visor.sopa.normal": "Normal",
+"visor.sopa.normal.d": "También en diagonal.",
 "visor.sopa.pocas": "Pocas palabras de este largo en esta lengua. Prueba un tamaño mayor u otra lengua.",
 "visor.sopa.tamano": "Tamaño",
 "visor.subtitulo": "{palabras} palabras · {lenguas} lenguas",
@@ -1365,6 +1395,15 @@ const Datos = {
         });
         this.words = [...map.values()].filter(w => Object.keys(w.t).length);
         this.byId = new Map(this.words.map(w => [w.id, w]));
+        // Relaciones: cada vínculo se guarda una vez; desde la otra palabra se lee con el nombre inverso
+        this.tiposRel = new Map((d.tiposRelacion || []).map(t => [String(t.id), t]));
+        this.rel = new Map();
+        (d.relaciones || []).forEach(r => {
+            const a = String(r.id_origen || ''), b = String(r.id_destino || ''), tipo = String(r.tipo || '');
+            if (!a || !b || a === b || !this.byId.has(a) || !this.byId.has(b)) return;
+            const pon = (x, otra, inv) => { if (!this.rel.has(x)) this.rel.set(x, []); this.rel.get(x).push({ otra, tipo, inv, nota: String(r.nota || '') }); };
+            pon(a, b, false); pon(b, a, true);
+        });
         // Lengua de referencia de la interfaz: la que eligió la persona, la del catálogo, o la primera con palabras
         const conPalabras = this.langs.filter(l => this.words.some(w => w.t[l.id]));
         this.principal = this.langById.has(String(this.cfg.idiomaPrincipal)) ? String(this.cfg.idiomaPrincipal) : (conPalabras[0]?.id || '');
@@ -1390,6 +1429,12 @@ const Datos = {
     fijarLengua(L) { this.lengua = L; LS.set('lengua:' + this.base, L); UI.refrescar(); },
     cambiarCatalogo() { UI.pantallaConexion(); },
 
+    /** Nombre de un tipo de relación: el que puso el catálogo o el de fábrica en el idioma de la interfaz. */
+    etiquetaRel(tipo, inv) {
+        const t = this.tiposRel.get(tipo) || { id: tipo, nombre: tipo };
+        if (inv && !t.simetrica) return t.inverso || (t.clave ? _i('visor.rel.' + t.clave + '.inv') : _i('visor.rel.inversaDe', { nombre: t.nombre || t.id }));
+        return t.nombre || (t.clave ? _i('visor.rel.' + t.clave) : t.id);
+    },
     nombreLengua(L) { return this.langById.get(String(L))?.nombre || String(L); },
     /** Texto de una palabra en la lengua pedida; si no existe, en la de referencia; si no, el primero. */
     texto(w, L = this.lengua) { if (!w) return ''; const t = w.t[L] || w.t[this.principal] || Object.values(w.t)[0]; return t ? t.texto : ''; },
@@ -1638,8 +1683,26 @@ const Ficha = {
                 ${tr.audio && tr.voz ? `<div class="nota">🎙️ ${_ih('visor.voz', { voz: tr.voz + (tr.lugar ? ' · ' + tr.lugar : '') })}</div>` : ''}
                 ${tr.nota ? `<div class="n">📌 ${esc(tr.nota)}</div>` : ''}
                 ${f ? `<div class="nota">📚 ${_ih('visor.fuente', { credito: [f.credito || f.titulo, tr.ubicacion].filter(Boolean).join(' · ') })}</div>` : ''}</div>`; }).join('')}
+            ${this.relacionadas(w)}
             ${Colabora.botonesSugerencia(w)}`);
         const i = $('modal-body').querySelector('[data-zoom]'); if (i) i.addEventListener('click', () => UI.zoom(img || ph));
+        $('modal-body').querySelectorAll('[data-rel]').forEach(b => b.addEventListener('click', () => Ficha.abrir(b.dataset.rel)));
+    },
+    /** Palabras relacionadas, agrupadas por tipo; cada una abre su propia ficha. */
+    relacionadas(w) {
+        const l = (Datos.rel.get(w.id) || []).filter(r => Datos.byId.has(r.otra));
+        if (!l.length) return '';
+        const orden = t => (Datos.tiposRel.get(t) || {}).orden ?? 999;
+        const grupos = new Map();
+        l.slice().sort((a, b) => orden(a.tipo) - orden(b.tipo) || Number(a.inv) - Number(b.inv)).forEach(r => {
+            const et = Datos.etiquetaRel(r.tipo, r.inv);
+            if (!grupos.has(et)) grupos.set(et, []);
+            grupos.get(et).push(r);
+        });
+        const L = Datos.lengua;
+        return `<div class="relacionadas"><h3>🔗 ${_ih('visor.relacionadas')}</h3>${[...grupos].map(([et, rs]) => `<div class="rel-g"><div class="l">${esc(et)}</div><div class="rel-items">${
+            rs.map(r => { const o = Datos.byId.get(r.otra); return `<button class="chip-rel" data-rel="${esc(r.otra)}"${Texto.lang(o.t[L] ? L : '')}>${esc(Datos.texto(o))}</button>${r.nota ? `<span class="nota">${esc(r.nota)}</span>` : ''}`; }).join('')
+        }</div></div>`).join('')}</div>`;
     }
 };
 
@@ -2049,6 +2112,7 @@ const Sopa = new class extends Motor {
         UI.abrir(`<div class="form"><h2 class="modal-titulo">🧩 ${_ih('visor.act.sopa')}</h2>
             <label class="t" for="s-l">${_ih('visor.lengua')}</label><select id="s-l" class="modern-select">${Comun.lenguas({ campo: 'largas', min: 6 })}</select>
             <span class="t">${_ih('visor.sopa.tamano')}</span><div class="chips">${[[8, 'chica'], [10, 'mediana'], [12, 'grande']].map(([n, t], i) => `<label class="chip"><input type="radio" name="s-t" value="${n}" ${i === 1 ? 'checked' : ''}> ${_ih('visor.sopa.' + t)} (${n}×${n})</label>`).join('')}</div>
+            <span class="t">${_ih('visor.sopa.nivel')}</span><div class="chips">${['facil', 'normal', 'dificil'].map(k => `<label class="chip" title="${_ih('visor.sopa.' + k + '.d')}"><input type="radio" name="s-n" value="${k}" ${k === (LS.get('sopa:nivel') || 'normal') ? 'checked' : ''}> ${_ih('visor.sopa.' + k)}</label>`).join('')}</div>
             ${Comun.jugadores()}
             <p class="nota">${_ih('visor.sopa.d')}</p>
             <div id="s-msg"></div>
@@ -2069,32 +2133,70 @@ const Sopa = new class extends Motor {
             .map(w => ({ w, g: Texto.letras(w.t[this.L].texto, this.L) })).filter(x => x.g.length >= 3 && x.g.length <= n);
         const vistos = new Set(), unicas = candidatas.filter(x => { const k = x.g.join(''); return !vistos.has(k) && vistos.add(k); });
         if (unicas.length < 4) return $('s-msg').innerHTML = '<div class="error-box">' + _ih('visor.sopa.pocas') + '</div>';
-        this.grid = Array.from({ length: n }, () => Array(n).fill(''));
-        const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
-        this.palabras = [];
-        for (const x of unicas) {
-            if (this.palabras.length >= cuantas) break;
-            let puesta = false;
-            for (let t = 0; t < 200 && !puesta; t++) {
-                const [dx, dy] = elegir(dirs), len = x.g.length;
-                const x0 = Math.floor(Math.random() * n), y0 = Math.floor(Math.random() * n);
-                const x1 = x0 + dx * (len - 1), y1 = y0 + dy * (len - 1);
-                if (x1 < 0 || x1 >= n || y1 < 0 || y1 >= n) continue;
-                let ok = true;
-                for (let k = 0; k < len && ok; k++) { const c = this.grid[y0 + dy * k][x0 + dx * k]; if (c && c !== x.g[k]) ok = false; }
-                if (!ok) continue;
-                const celdas = [];
-                for (let k = 0; k < len; k++) { this.grid[y0 + dy * k][x0 + dx * k] = x.g[k]; celdas.push(`${x0 + dx * k},${y0 + dy * k}`); }
-                this.palabras.push({ w: x.w, g: x.g, clave: x.g.join('|'), celdas, hallada: false, color: ['#2563eb', '#e11d48', '#16a34a', '#d97706', '#7c3aed', '#0891b2', '#be185d', '#065f46', '#9333ea', '#ca8a04'][this.palabras.length % 10] });
-                puesta = true;
-            }
-        }
+        const nivel = (document.querySelector('input[name="s-n"]:checked') || {}).value || 'normal';
+        LS.set('sopa:nivel', nivel);
+        const r = this.generar(unicas, n, cuantas, nivel);
+        this.grid = r.grid;
+        this.palabras = r.palabras.map((x, i) => ({ w: x.w, g: x.g, clave: x.g.join('|'), celdas: x.celdas, hallada: false,
+            color: ['#2563eb', '#e11d48', '#16a34a', '#d97706', '#7c3aed', '#0891b2', '#be185d', '#065f46', '#9333ea', '#ca8a04'][i % 10] }));
         const alfa = Texto.alfabeto(this.L).filter(a => a.length <= 3);
         const relleno = alfa.length ? alfa : 'abcdefghijklmnopqrstuvwxyz'.split('');
         for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (!this.grid[y][x]) this.grid[y][x] = elegir(relleno);
         this.encontradas = {}; this.sel = [];
         this.empezar(Comun.leerJugadores());
         this.pintar();
+    }
+    /**
+     * Acomoda las palabras en la cuadrícula. Las palabras se cruzan cuando comparten una letra (nunca en la misma
+     * línea: una no puede quedar escondida dentro de otra) y las direcciones se reparten para que no se adivinen
+     * por los huecos. nivel: facil (→ ↓), normal (+ diagonales), dificil (también al revés).
+     * Devuelve { grid, palabras: [{ w, g, celdas, dir }] } con las celdas vacías en ''.
+     */
+    generar(lista, n, cuantas, nivel = 'normal', rnd = Math.random) {
+        const base = { facil: [[1, 0], [0, 1]], normal: [[1, 0], [0, 1], [1, 1], [1, -1]] }[nivel];
+        const dirs = base || [[1, 0], [0, 1], [1, 1], [1, -1], [-1, 0], [0, -1], [-1, -1], [-1, 1]];
+        const eje = ([dx, dy]) => (dx < 0 || (dx === 0 && dy < 0)) ? `${-dx},${-dy}` : `${dx},${dy}`;
+        const grid = Array.from({ length: n }, () => Array(n).fill(''));
+        const ejes = Array.from({ length: n }, () => Array.from({ length: n }, () => new Set()));
+        const usos = new Map(dirs.map(d => [d.join(','), 0]));
+        // Las elegidas, de la más larga a la más corta (las largas son las difíciles de acomodar);
+        // si alguna no cabe, entra otra de reserva. El orden de la lista se conserva en el resultado.
+        const elegidas = lista.slice(0, Math.max(cuantas * 2, cuantas + 6));
+        const orden = elegidas.slice(0, cuantas).sort((a, b) => b.g.length - a.g.length).concat(elegidas.slice(cuantas));
+        const puestas = [];
+        for (const x of orden) {
+            if (puestas.length >= cuantas) break;
+            const len = x.g.length, opciones = [];
+            const menos = Math.min(...usos.values());
+            for (const d of dirs) {
+                const [dx, dy] = d, e = eje(d);
+                for (let y0 = 0; y0 < n; y0++) for (let x0 = 0; x0 < n; x0++) {
+                    const x1 = x0 + dx * (len - 1), y1 = y0 + dy * (len - 1);
+                    if (x1 < 0 || x1 >= n || y1 < 0 || y1 >= n) continue;
+                    let cruces = 0, ok = true;
+                    for (let k = 0; k < len && ok; k++) {
+                        const cx = x0 + dx * k, cy = y0 + dy * k, c = grid[cy][cx];
+                        if (!c) continue;
+                        if (c !== x.g[k] || ejes[cy][cx].has(e)) ok = false; else cruces++;
+                    }
+                    if (!ok || cruces === len) continue;
+                    // Puntaje: cruzarse suma, repartir direcciones suma, y un poco de azar para que cada sopa sea distinta
+                    const pts = (cruces ? 3 + Math.min(cruces, 2) : 0) + (usos.get(d.join(',')) === menos ? 2 : 0) + rnd() * 3;
+                    opciones.push({ d, x0, y0, pts });
+                }
+            }
+            if (!opciones.length) continue;
+            const m = opciones.reduce((a, b) => b.pts > a.pts ? b : a);
+            const celdas = [];
+            for (let k = 0; k < len; k++) {
+                const cx = m.x0 + m.d[0] * k, cy = m.y0 + m.d[1] * k;
+                grid[cy][cx] = x.g[k]; ejes[cy][cx].add(eje(m.d)); celdas.push(`${cx},${cy}`);
+            }
+            usos.set(m.d.join(','), usos.get(m.d.join(',')) + 1);
+            puestas.push({ w: x.w, g: x.g, celdas, dir: m.d, i: elegidas.indexOf(x) });
+        }
+        puestas.sort((a, b) => a.i - b.i);
+        return { grid, palabras: puestas };
     }
     pintar() {
         const n = this.n, cs = Math.max(22, Math.min(46, this.celdaPx(n)));
