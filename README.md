@@ -174,7 +174,7 @@ El manual completo, paso a paso, está en preparación.
 
 - **¿Tu comunidad o institución usa este visor?** Nos ayuda mucho saberlo, de forma voluntaria y sin ningún rastreo: [cómo avisarnos].
 - **Errores y sugerencias:** abre un *issue* en este repositorio.
-- **Contacto:** [correo del proyecto].
+- **Contacto:** joalesmu@gmail.com.
 
 ---
 
