@@ -1,0 +1,31 @@
+=== Para el inicio de index.html (dentro de un comentario HTML) ===
+
+<!--
+  Visor de catálogos de lenguas
+  Copyright (c) 2025 Alejandro Estrada
+  SPDX-License-Identifier: AGPL-3.0-only
+
+  Este programa es software libre: puedes redistribuirlo y modificarlo según los
+  términos de la Licencia Pública General Affero de GNU, versión 3, con los
+  términos adicionales de su sección 7 (crédito de autoría visible y marca de
+  versiones modificadas) descritos en NOTICE.md del repositorio original:
+  [enlace al repositorio]
+  Se distribuye SIN NINGUNA GARANTÍA. Texto completo: https://www.gnu.org/licenses/agpl-3.0.html
+  Los contenidos de cada catálogo pertenecen a sus comunidades y tienen su propia licencia.
+-->
+
+=== Para el inicio de Codigo.gs (comentario de JavaScript) ===
+
+/*
+ * Sistema de gestión de catálogos de lenguas
+ * Copyright (c) 2025 Alejandro Estrada
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * Este programa es software libre: puedes redistribuirlo y modificarlo según los
+ * términos de la Licencia Pública General Affero de GNU, versión 3, con los
+ * términos adicionales de su sección 7 (crédito de autoría visible y marca de
+ * versiones modificadas) descritos en NOTICE.md del repositorio original:
+ * [enlace al repositorio]
+ * Se distribuye SIN NINGUNA GARANTÍA. Texto completo: https://www.gnu.org/licenses/agpl-3.0.html
+ * Los contenidos de cada catálogo pertenecen a sus comunidades y tienen su propia licencia.
+ */
