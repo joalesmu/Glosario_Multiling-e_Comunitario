@@ -3,10 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <meta name="theme-color" content="#2563eb">
+    <meta name="theme-color" content="#0f766e">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="iconos/favicon-32.png">
+    <link rel="apple-touch-icon" href="iconos/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Catálogo">
     <title>Glosario</title>
     <!--
-      Visor de catálogos de lenguas · versión 1.1
+      Visor de catálogos de lenguas · versión 1.2
       Copyright (c) 2025 Alejandro Estrada
       SPDX-License-Identifier: AGPL-3.0-only
 
@@ -19,7 +25,7 @@
       Los contenidos de cada catálogo pertenecen a sus comunidades y tienen su propia licencia.
     -->
     <!--
-      Visor del catálogo multilingüe · versión 1.1
+      Visor del catálogo multilingüe · versión 1.2
       Un solo archivo, sin dependencias externas. Funciona con cualquier catálogo:
         - API_URL fija (abajo), o ?api=<dirección del script>&token=<clave opcional> en el enlace.
       Secciones: Explorar · Aprender · Jugar · Imprimir · Colabora.
@@ -185,6 +191,13 @@
         .audio-btn.sonando { border-color:var(--success); }
 
         /* Avisos flotantes */
+        /* 1.2: progreso local e instalación */
+        .prog-datos { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; margin:12px 0 6px; }
+        .prog-dato { border:2px solid var(--border); border-radius:12px; padding:10px; display:flex; flex-direction:column; align-items:center; text-align:center; background:var(--bg-card); }
+        .prog-dato .ico { font-size:1.4em; } .prog-dato b { font-size:1.6em; color:var(--primary); line-height:1.2; } .prog-dato span:last-child { font-size:.85em; color:var(--text-sub); }
+        .prog-lista { display:flex; flex-direction:column; gap:4px; }
+        .prog-fila { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; padding:6px 8px; border-bottom:1px solid var(--border); font-size:.92em; }
+        .toast-accion { display:flex; align-items:center; border-radius:14px; z-index:3000; }
         .toast { position:fixed; left:50%; bottom:calc(var(--nav-h) + 16px); transform:translateX(-50%); background:var(--text-main); color:var(--bg-body); padding:10px 18px; border-radius:30px; font-weight:700; z-index:6000; max-width:92vw; text-align:center; animation:popUp .2s; pointer-events:none; }
         .anuncio { position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:6000; background:var(--success); color:#fff; padding:12px 22px; border-radius:40px; font-weight:800; box-shadow:var(--shadow); pointer-events:none; max-width:92vw; text-align:center; animation:entra .4s ease-out, sale .5s ease-in 3.8s forwards; }
         @keyframes entra { from{transform:translate(-50%,-30px);opacity:0} to{transform:translate(-50%,0);opacity:1} }

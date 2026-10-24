@@ -3,10 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <meta name="theme-color" content="#2563eb">
+    <meta name="theme-color" content="#0f766e">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="iconos/favicon-32.png">
+    <link rel="apple-touch-icon" href="iconos/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Catálogo">
     <title>Glosario</title>
     <!--
-      Visor de catálogos de lenguas · versión 1.1
+      Visor de catálogos de lenguas · versión 1.2
       Copyright (c) 2025 Alejandro Estrada
       SPDX-License-Identifier: AGPL-3.0-only
 
@@ -19,7 +25,7 @@
       Los contenidos de cada catálogo pertenecen a sus comunidades y tienen su propia licencia.
     -->
     <!--
-      Visor del catálogo multilingüe · versión 1.1
+      Visor del catálogo multilingüe · versión 1.2
       Un solo archivo, sin dependencias externas. Funciona con cualquier catálogo:
         - API_URL fija (abajo), o ?api=<dirección del script>&token=<clave opcional> en el enlace.
       Secciones: Explorar · Aprender · Jugar · Imprimir · Colabora.
@@ -185,6 +191,13 @@
         .audio-btn.sonando { border-color:var(--success); }
 
         /* Avisos flotantes */
+        /* 1.2: progreso local e instalación */
+        .prog-datos { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; margin:12px 0 6px; }
+        .prog-dato { border:2px solid var(--border); border-radius:12px; padding:10px; display:flex; flex-direction:column; align-items:center; text-align:center; background:var(--bg-card); }
+        .prog-dato .ico { font-size:1.4em; } .prog-dato b { font-size:1.6em; color:var(--primary); line-height:1.2; } .prog-dato span:last-child { font-size:.85em; color:var(--text-sub); }
+        .prog-lista { display:flex; flex-direction:column; gap:4px; }
+        .prog-fila { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; padding:6px 8px; border-bottom:1px solid var(--border); font-size:.92em; }
+        .toast-accion { display:flex; align-items:center; border-radius:14px; z-index:3000; }
         .toast { position:fixed; left:50%; bottom:calc(var(--nav-h) + 16px); transform:translateX(-50%); background:var(--text-main); color:var(--bg-body); padding:10px 18px; border-radius:30px; font-weight:700; z-index:6000; max-width:92vw; text-align:center; animation:popUp .2s; pointer-events:none; }
         .anuncio { position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:6000; background:var(--success); color:#fff; padding:12px 22px; border-radius:40px; font-weight:800; box-shadow:var(--shadow); pointer-events:none; max-width:92vw; text-align:center; animation:entra .4s ease-out, sale .5s ease-in 3.8s forwards; }
         @keyframes entra { from{transform:translate(-50%,-30px);opacity:0} to{transform:translate(-50%,0);opacity:1} }
@@ -358,6 +371,8 @@
             <button class="a11y-btn" onclick="A11y.larger()" data-i-attr="title:visor.a11y.mayor|aria-label:visor.a11y.mayor">A+</button>
             <button class="a11y-btn" id="btn-contrast" onclick="A11y.toggleContrast()" data-i-attr="title:visor.a11y.contraste|aria-label:visor.a11y.contraste">🌓</button>
             <button class="a11y-btn" id="btn-interfaz" onclick="Interfaz.abrir()" data-i-attr="title:visor.interfaz.boton|aria-label:visor.interfaz.boton">🌐</button>
+            <button class="a11y-btn" id="btn-perfil" onclick="Progreso.abrir()" data-i-attr="title:visor.prog.titulo|aria-label:visor.prog.titulo">📱</button>
+            <button class="a11y-btn" id="btn-instalar" hidden data-i-attr="title:visor.inst.titulo|aria-label:visor.inst.titulo">⬇️</button>
             <button class="a11y-btn" id="btn-cambiar-base" onclick="Datos.cambiarCatalogo()" data-i-attr="title:visor.cambiarCatalogo|aria-label:visor.cambiarCatalogo">🔌</button>
         </div>
     </div>
@@ -399,7 +414,7 @@
    predeterminado de este visor, pero desde 🔌 se puede abrir otro y volver. */
 const API_URL   = "";
 const API_TOKEN = "";
-const VERSION_VISOR = '1.1';
+const VERSION_VISOR = '1.2';
 /* Textos de la interfaz en español (base de todas las traducciones). Se generan con el catálogo: no editar a mano. */
 const V_ES = {
 "visor.a11y": "Accesibilidad",
@@ -488,6 +503,8 @@ const V_ES = {
 "visor.act.otroCatalogo": "Este archivo es del catálogo «{x}». Ábrelo con ese catálogo.",
 "visor.act.preguntaCasa": "Pregunta en casa",
 "visor.act.preguntaCasa.d": "Para buscar palabras y descripciones con la familia, y sumarlas al catálogo.",
+"visor.act.progreso": "Mi progreso",
+"visor.act.progreso.d": "Palabras vistas, favoritas, partidas y repaso. Se guarda solo en este aparato.",
 "visor.act.queLetra": "¿Con qué letra empieza?",
 "visor.act.queLetra.d": "Mira la imagen, escucha y elige la letra con la que empieza.",
 "visor.act.quees": "¿Qué es?",
@@ -662,9 +679,13 @@ const V_ES = {
 "visor.cx.clave.d": "Este dispositivo recuerda la clave de cada catálogo por separado.",
 "visor.cx.conectar": "Conectar",
 "visor.cx.d": "Pega la dirección del catálogo (termina en /exec). Si el catálogo pide clave, escríbela también: quien lo administra la encuentra en la hoja, pestaña CONFIG, columna API_TOKEN.",
-"visor.cx.direccion": "Dirección",
+"visor.cx.direccion": "Dirección del catálogo o enlace de invitación",
+"visor.cx.enlace.d": "También puedes pegar aquí el enlace de invitación completo que te compartieron: la dirección y la clave se toman solas.",
+"visor.cx.enlaceLeido": "Enlace de invitación leído: dirección y clave listas.",
 "visor.cx.error.direccion": "Esa dirección no parece de un catálogo: debe empezar con https://script.google.com/",
 "visor.cx.olvidar": "Olvidar este catálogo en este dispositivo",
+"visor.cx.pegar": "Pegar enlace",
+"visor.cx.pegar.error": "No se pudo leer lo copiado: mantén presionado el recuadro y elige Pegar.",
 "visor.cx.predeterminado": "Volver al catálogo de este visor",
 "visor.cx.recientes": "Catálogos que ya abriste aquí",
 "visor.cx.sub": "Conecta un catálogo",
@@ -943,6 +964,19 @@ const V_ES = {
 "visor.imp2.trazo.palabras": "Agregar palabras del catálogo que tienen la letra",
 "visor.imp2.verticales": "Verticales",
 "visor.imprimir.intro": "Materiales en tamaño carta para escuelas y comunidades, también donde no hay dispositivos ni internet.",
+"visor.inst.actualizar": "Actualizar",
+"visor.inst.android": "En Android (Chrome): menú ⋮ → *Instalar app* o *Agregar a pantalla principal*.",
+"visor.inst.d": "Instalado abre al instante, funciona sin internet con lo último guardado y conserva el progreso. Nada se envía por instalarlo.",
+"visor.inst.entendido": "Entendido",
+"visor.inst.ios.d": "En iPhone, Safari borra los datos de las páginas que no se usan en 7 días; instalado, se conservan tu progreso y lo descargado.",
+"visor.inst.ios1": "1. Abre esta página en *Safari*.",
+"visor.inst.ios2": "2. Toca *Compartir* (el cuadro con la flecha hacia arriba).",
+"visor.inst.ios3": "3. Elige *Agregar a pantalla de inicio* y luego *Agregar*.",
+"visor.inst.lista": "El catálogo quedó instalado.",
+"visor.inst.nueva": "Hay una versión nueva del visor.",
+"visor.inst.pc": "En computadora (Chrome o Edge): el ícono de instalar en la barra de direcciones.",
+"visor.inst.termina": "Termina la actividad antes de actualizar.",
+"visor.inst.titulo": "Instalar como app",
 "visor.interfaz.avance": "{n} de {total} textos",
 "visor.interfaz.boton": "Idioma de los menús",
 "visor.interfaz.delCatalogo": "del catálogo",
@@ -1195,6 +1229,50 @@ const V_ES = {
 "visor.pista.siNoHay": "Si una palabra no tiene descripción, usar:",
 "visor.pista.titulo": "Pista de cada palabra",
 "visor.pista.volver": "Volver a la del catálogo",
+"visor.prog.aciertos": "Aciertos en los últimos 30 días: *{n} %*",
+"visor.prog.ahoraEres": "Ahora: {perfil}",
+"visor.prog.apodo": "Apodo",
+"visor.prog.apodo.d": "Usa un apodo o un juego de palabras, nunca tu nombre real. El perfil solo existe en este aparato.",
+"visor.prog.apodo.ej": "Ej. Venado veloz",
+"visor.prog.apodo.falta": "Escribe un apodo.",
+"visor.prog.aprendidas": "aprendidas en el repaso",
+"visor.prog.borrar": "Borrar mi progreso",
+"visor.prog.borrar.c": "¿Borrar el progreso de {perfil} en este catálogo? No se puede deshacer.",
+"visor.prog.boton": "Mi progreso ({perfil})",
+"visor.prog.compartir": "Compartir o guardar",
+"visor.prog.compartir.d": "Solo si tú quieres: el resumen no lleva nombres; la copia sirve para pasar tu progreso a otro aparato.",
+"visor.prog.compartirResumen": "Compartir mi resumen",
+"visor.prog.copia": "Copia este resumen:",
+"visor.prog.copiaGuardada": "Copia guardada en Descargas.",
+"visor.prog.copiado": "Resumen copiado: pégalo donde quieras.",
+"visor.prog.dias7": "días de práctica esta semana",
+"visor.prog.dibujo": "Dibujo",
+"visor.prog.editarPerfil": "Cambiar apodo o dibujo",
+"visor.prog.esFavorita": "Favorita",
+"visor.prog.escuchadas": "palabras escuchadas",
+"visor.prog.esteAparato": "Este aparato",
+"visor.prog.favoritas": "favoritas",
+"visor.prog.guardarCopia": "Guardar copia de mi progreso",
+"visor.prog.guardarPerfil": "Guardar",
+"visor.prog.marcarFavorita": "Marcar como favorita",
+"visor.prog.nuevo": "Nuevo perfil",
+"visor.prog.partidas7": "partidas esta semana",
+"visor.prog.perfil": "Perfil",
+"visor.prog.privado": "Se guarda solo en este aparato y nunca se envía. Compartir es siempre decisión tuya.",
+"visor.prog.quitarPerfil": "Quitar perfil",
+"visor.prog.quitarPerfil.c": "¿Quitar el perfil {perfil} y todo su progreso en este aparato?",
+"visor.prog.recuperar": "Recuperar una copia",
+"visor.prog.recuperar.c": "¿Reemplazar el progreso de {perfil} con el de la copia?",
+"visor.prog.recuperar.mal": "Ese archivo no es una copia de progreso.",
+"visor.prog.recuperar.otro": "Esa copia es de otro catálogo ({titulo}).",
+"visor.prog.resumen.titulo": "Mi avance en {catalogo} {perfil} · {fecha}",
+"visor.prog.sinCatalogo": "Primero abre un catálogo.",
+"visor.prog.sinPartidas": "Todavía no hay partidas en este perfil.",
+"visor.prog.titulo": "Mi progreso",
+"visor.prog.todos": "Todos los perfiles de este aparato",
+"visor.prog.todos.d": "Para que el docente revise el avance aquí mismo, perfil por perfil. Nada de esto sale del aparato.",
+"visor.prog.ultimas": "Últimas actividades",
+"visor.prog.vistas": "palabras vistas",
 "visor.prop.acepto": "Acepto que el equipo revise esto y, si lo acepta, lo use en el catálogo y sus materiales educativos, con el crédito que elegí.",
 "visor.prop.actividad": "Actividad o código de la hoja (opcional)",
 "visor.prop.actividad.ph": "Ej. Pregunta en casa · La milpa · 7K3P",
@@ -1714,6 +1792,14 @@ const Texto = {
 /** Catálogos abiertos en este dispositivo: dirección, su clave y su título (para volver a ellos). */
 const Catalogos = {
     limpiar(u) { return String(u || '').trim().split('?')[0].split('#')[0]; },
+    /** Lee lo que la persona pega: la dirección del catálogo o un enlace de invitación del visor (…?api=…&token=…). */
+    desdeEnlace(texto) {
+        const s = String(texto || '').trim(), m = s.match(/https?:\/\/\S+/); if (!m) return { url: '', token: '' };
+        let u; try { u = new URL(m[0]); } catch (e) { return { url: '', token: '' }; }
+        const api = u.searchParams.get('api');
+        if (api) return { url: this.limpiar(api), token: (u.searchParams.get('token') || '').trim() };
+        return { url: this.limpiar(m[0]), token: '' };
+    },
     lista() { const l = LS.get('glosario_catalogos', []); return Array.isArray(l) ? l : []; },
     clave(url) {
         const c = this.lista().find(x => x.url === url);
@@ -1728,7 +1814,7 @@ const Catalogos = {
         l.unshift({ url, token: token || '', titulo: titulo || previo.titulo || '' });
         LS.set('glosario_catalogos', l.slice(0, 12)); LS.del('glosario_token');
     },
-    olvidar(url) { LS.set('glosario_catalogos', this.lista().filter(x => x.url !== url)); LS.del('cat:' + url); if (LS.get('glosario_url', '') === url) LS.del('glosario_url'); }
+    olvidar(url) { LS.set('glosario_catalogos', this.lista().filter(x => x.url !== url)); LS.del('cat:' + url); Copia.borrar(url); if (LS.get('glosario_url', '') === url) LS.del('glosario_url'); }
 };
 
 /* =============================================
@@ -1748,7 +1834,7 @@ const Estado = {
         if (!offline) {
             // Borrado precautorio: si el catálogo lo pidió, la copia de este dispositivo se va
             const p = String(est.purga || ''), k = 'purga:' + Datos.base;
-            if (p && LS.get(k, '') !== p) { if (LS.get('cat:' + Datos.base)) this.purgado = true; LS.del('cat:' + Datos.base); LS.set(k, p); }
+            if (p && LS.get(k, '') !== p) { if (LS.get('cat:' + Datos.base) || Copia.hay(Datos.base)) this.purgado = true; LS.del('cat:' + Datos.base); Copia.borrar(Datos.base); LS.set(k, p); }
         }
         this.e = est; this.mant = mant;
         this.cerrado = !!(mant && mant.modo === 'cerrar' && this.rol !== 'equipo');
@@ -1871,7 +1957,7 @@ const Datos = {
         // Lo recordado primero (avisos, mantenimiento): si el catálogo estaba cerrado, no se muestra la copia
         const rec = Estado.recordado();
         if (rec) Estado.aplicar({ estado: rec.estado, mantenimiento: rec.mantenimiento, rol: rec.rol }, true);
-        const copia = Estado.cerrado ? null : LS.get('cat:' + this.base);
+        const copia = Estado.cerrado ? null : await Copia.leer(this.base);
         if (Estado.cerrado) Estado.pantalla();
         else if (copia && copia.data) { this.cargar(copia.data, copia.version); UI.refrescar(); UI.estadoConexion(_i(navigator.onLine ? 'visor.con.actualizando' : 'visor.con.guardada'), !navigator.onLine); }
         await this.actualizar(false);
@@ -1883,10 +1969,10 @@ const Datos = {
     async actualizar(silencioso) {
         try {
             const m = await this.api({ action: 'manifiesto' }, 8000).catch(() => null);
-            if (m && m.status === 401) { LS.del('cat:' + this.base); this.cargado = false; throw new Error(_i('visor.con.clave')); }   // sin la clave correcta no se muestra ni lo guardado
+            if (m && m.status === 401) { Copia.borrar(this.base); this.cargado = false; throw new Error(_i('visor.con.clave')); }   // sin la clave correcta no se muestra ni lo guardado
             if (m && (m.status === 200 || m.status === 503)) Estado.aplicar(m);
             if (Estado.cerrado) { this.cargado = false; Estado.pantalla(); UI.estadoConexion(_i('visor.mant.estado'), true, '🚧'); return !!m; }
-            const copia = LS.get('cat:' + this.base), version = (m && m.version) || '';
+            const copia = await Copia.leer(this.base), version = (m && m.version) || '';
             if (m && version && copia && copia.version === version) {
                 if (!this.cargado) { this.cargar(copia.data, copia.version); UI.refrescar(); }   // p. ej. al volver de la pantalla de mantenimiento
                 UI.estadoConexion(_i('visor.con.aldia'));
@@ -1895,12 +1981,12 @@ const Datos = {
             if (!m && this.cargado) { UI.estadoConexion(_i('visor.con.guardada'), true); return false; }
             const r = await this.api({ action: 'glosario' }, 20000);
             if (r.status === 503) { Estado.aplicar(r); this.cargado = false; Estado.pantalla(); return true; }
-            if (r.status === 401) { LS.del('cat:' + this.base); this.cargado = false; throw new Error(_i('visor.con.clave')); }
+            if (r.status === 401) { Copia.borrar(this.base); this.cargado = false; throw new Error(_i('visor.con.clave')); }
             if (r.status !== 200 || !r.data) throw new Error(r.error || _i('visor.con.inesperada'));
             const eraCargado = this.cargado, antes = this.version, y = window.scrollY;
             this.cargar(r.data, r.version || version);
             Catalogos.recordar(this.base, this.token, this.cfg.titulo);
-            if (!LS.set('cat:' + this.base, { version: r.version || version, data: r.data, t: Date.now() })) console.warn('Sin espacio para guardar la copia sin conexión.');
+            if (!(await Copia.guardar(this.base, { version: r.version || version, data: r.data, t: Date.now() }))) console.warn('Sin espacio para guardar la copia sin conexión.');
             UI.estadoConexion(_i('visor.con.aldia'));
             UI.refrescar();
             if (silencioso && eraCargado && antes !== this.version) { window.scrollTo(0, y); UI.toast(_i('visor.con.nuevaVersion')); }
@@ -2175,6 +2261,8 @@ const UI = {
             ${error ? `<div class="error-box">${esc(error)}</div>` : ''}
             <p class="nota">${_ih('visor.cx.d')}</p>
             <label class="nota" for="cx-url">${_ih('visor.cx.direccion')}</label><input id="cx-url" class="input-box" value="${esc(Datos.base)}" autocomplete="off" spellcheck="false">
+            <p class="nota">${_ih('visor.cx.enlace.d')}</p>
+            ${navigator.clipboard && navigator.clipboard.readText ? `<button class="btn btn-secondary" style="min-height:34px;padding:4px 12px" id="cx-pegar">📋 ${_ih('visor.cx.pegar')}</button>` : ''}
             <label class="nota" for="cx-tok">${_ih('visor.cx.clave')}</label><input id="cx-tok" class="input-box" value="${esc(pideClave ? '' : Datos.token)}" autocomplete="off" spellcheck="false">
             <p class="nota">${_ih('visor.cx.clave.d')}</p>
             <button class="btn btn-primary btn-block" style="margin-top:10px" id="cx-ok">${_ih('visor.cx.conectar')}</button>
@@ -2183,10 +2271,14 @@ const UI = {
             ${rec.length ? `<h3>${_ih('visor.cx.recientes')}</h3>${rec.map((c, i) => `<div class="fila" style="margin:4px 0"><button class="btn btn-secondary" style="flex:1;text-align:left" data-rec="${i}">${esc(c.titulo || c.url.replace(/^https:\/\/script\.google\.com\/macros\/s\//, '').slice(0, 24) + '…')}</button><button class="btn btn-secondary" data-olvidar="${i}" title="${esc(_i('visor.cx.olvidar'))}" aria-label="${esc(_i('visor.cx.olvidar'))}">✕</button></div>`).join('')}` : ''}
         </div>`;
         const ir = (url, tok) => { url = Catalogos.limpiar(url); if (!url) return; Catalogos.recordar(url, tok); LS.set('glosario_url', url); location.href = location.pathname; };
+        // Si se pega un enlace de invitación, la dirección y la clave se toman de ahí
+        const leerEnlace = () => { const e = Catalogos.desdeEnlace($('cx-url').value); if (e.url && e.url !== $('cx-url').value.trim()) { $('cx-url').value = e.url; if (e.token) $('cx-tok').value = e.token; UI.toast(_i('visor.cx.enlaceLeido')); } return e; };
+        $('cx-url').addEventListener('change', leerEnlace); $('cx-url').addEventListener('paste', () => setTimeout(leerEnlace, 0));
+        $('cx-pegar')?.addEventListener('click', async () => { try { $('cx-url').value = await navigator.clipboard.readText(); leerEnlace(); } catch (e) { UI.toast(_i('visor.cx.pegar.error')); } });
         $('cx-ok').onclick = () => {
-            const url = Catalogos.limpiar($('cx-url').value);
+            const e = leerEnlace(), url = e.url || Catalogos.limpiar($('cx-url').value);
             if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(url)) return UI.toast(_i('visor.cx.error.direccion'));
-            ir(url, $('cx-tok').value.trim());
+            ir(url, $('cx-tok').value.trim() || e.token);
         };
         $('cx-volver')?.addEventListener('click', () => UI.refrescar());
         $('cx-pred')?.addEventListener('click', () => { LS.del('glosario_url'); location.href = location.pathname; });
@@ -2414,6 +2506,7 @@ const ACTIVIDADES = [
     { sec: 'jugar', ico: '😵', id: 'ahorcado', d: '', req: { campo: 'largas', min: 6 }, abrir: () => Ahorcado.setup() },
     { sec: 'jugar', ico: '🧩', id: 'sopa', d: '', req: { campo: 'largas', min: 6 }, abrir: () => Sopa.setup() },
     // Aprender
+    { sec: 'aprender', ico: '📈', id: 'progreso', d: '', abrir: () => Progreso.abrir() },
     { sec: 'aprender', ico: '🃏', id: 'repaso', d: '', req: { campo: 'img', min: 5 }, abrir: () => Repaso.abrir() },
     { sec: 'aprender', ico: '👂', id: 'escucha', d: '', req: { campo: 'imgAudio', min: 4 }, abrir: () => Escucha.abrir() },
     { sec: 'aprender', ico: '🌎', id: 'enquelengua', d: '', req: { campo: 'lenguas', min: 2 }, abrir: () => EnQueLengua.abrir() },
@@ -3293,7 +3386,7 @@ function distancia(a, b) {
 /* ---------- Repaso con tarjetas (cajas de Leitner, se guarda en el dispositivo) ---------- */
 const Repaso = {
     DIAS: [0, 0, 1, 3, 7, 16],
-    clave(L) { return `repaso:${Datos.base}:${L}`; },
+    clave(L) { return `repaso:${Datos.base}:${L}${Perfiles.sufijo()}`; },   // cada perfil local lleva su propio repaso
     abrir() {
         const L = Datos.lengua;
         UI.abrir(`<div class="form"><h2 class="modal-titulo">🃏 ${_ih('visor.act.repaso')}</h2>
@@ -8244,6 +8337,273 @@ function revisarEnlaceOir() {
 </script>
 <script>
 /* =============================================
+   COPIA DEL CATÁLOGO, PERFILES, PROGRESO E INSTALACIÓN (versión 1.2)
+   Reglas: todo queda en este aparato; nada se envía solo; sin nombres reales (apodos);
+   compartir es siempre una decisión de la persona; cada catálogo guarda lo suyo por separado.
+   ============================================= */
+
+/** Copia del catálogo para usarlo sin conexión: en IndexedDB (cabe mucho más que en localStorage). */
+const Copia = {
+    bases: new Set(),
+    clave: base => `${base}|cat|datos`,
+    hay(base) { return this.bases.has(base) || !!LS.get('cat:' + base); },
+    async leer(base) {
+        if (!base) return null;
+        const d = await Offline.tx('readonly', s => s.get(this.clave(base)));
+        if (d && d.data) { this.bases.add(base); return d; }
+        // Versiones anteriores la guardaban en localStorage: se pasa a IndexedDB y se libera el espacio
+        const vieja = LS.get('cat:' + base);
+        if (vieja && vieja.data) { if (await this.guardar(base, vieja)) LS.del('cat:' + base); return vieja; }
+        return null;
+    },
+    async guardar(base, obj) {
+        const ok = await Offline.tx('readwrite', s => s.put(obj, this.clave(base)));
+        if (ok === null) return LS.set('cat:' + base, obj);   // sin IndexedDB (p. ej. ventana privada): como antes
+        this.bases.add(base); LS.del('cat:' + base); Instalar.persistir();
+        return true;
+    },
+    borrar(base) { this.bases.delete(base); LS.del('cat:' + base); Offline.tx('readwrite', s => s.delete(this.clave(base))); }
+};
+
+/* ---------- Perfiles locales: apodo y dibujo, nunca el nombre real ---------- */
+const EMOJIS_PERFIL = ['🦊', '🐢', '🦉', '🐝', '🌽', '🌻', '🐟', '🦋', '🌙', '⭐', '🍄', '🐇', '🦌', '🐦', '🌵', '🔥', '🌊', '🐸', '🦎', '🌈'];
+const Perfiles = {
+    lista() { const l = LS.get('perfiles', []); return Array.isArray(l) ? l.filter(p => p && p.id) : []; },
+    actual() { const a = LS.get('perfil_actual', 'p0') || 'p0'; return a === 'p0' || this.lista().some(p => p.id === a) ? a : 'p0'; },
+    datos(id = this.actual()) { return id === 'p0' ? { id: 'p0', apodo: _i('visor.prog.esteAparato'), emoji: '📱' } : (this.lista().find(p => p.id === id) || this.datos('p0')); },
+    sufijo() { const a = this.actual(); return a === 'p0' ? '' : ':' + a; },
+    etiqueta(id) { const p = this.datos(id); return `${p.emoji} ${p.apodo}`; },
+    elegir(id) { LS.set('perfil_actual', id); Progreso.pintarBoton(); UI.toast(_i('visor.prog.ahoraEres', { perfil: this.etiqueta(id) })); },
+    crear(apodo, emoji) {
+        const l = this.lista(), p = { id: 'u' + Date.now().toString(36), apodo: apodo.slice(0, 20), emoji, creado: Date.now() };
+        l.push(p); LS.set('perfiles', l.slice(0, 40)); return p;
+    },
+    renombrar(id, apodo, emoji) { LS.set('perfiles', this.lista().map(p => p.id === id ? Object.assign(p, { apodo: apodo.slice(0, 20), emoji }) : p)); },
+    borrar(id) {
+        // Se quita el perfil y todo su progreso en este aparato (de todos los catálogos)
+        LS.set('perfiles', this.lista().filter(p => p.id !== id));
+        try { Object.keys(localStorage).filter(k => (k.startsWith('prog:') || k.startsWith('repaso:')) && k.endsWith(':' + id)).forEach(k => LS.del(k)); } catch (e) {}
+        if (LS.get('perfil_actual') === id) LS.set('perfil_actual', 'p0');
+        Progreso.pintarBoton();
+    }
+};
+
+/* ---------- Progreso: palabras vistas y escuchadas, favoritas, partidas ---------- */
+const Progreso = {
+    MAX_PARTIDAS: 300, DIAS: 120,
+    clave(perfil = Perfiles.actual(), base = Datos.base) { return `prog:${base}:${perfil}`; },
+    leer(perfil) { return Object.assign({ vistas: {}, escuchadas: {}, favoritas: [], juegos: [], dias: {} }, LS.get(this.clave(perfil), null) || {}); },
+    guardar(d) {
+        if (LS.set(this.clave(), d)) { Instalar.persistir(); return; }
+        // Sin espacio: se recortan las partidas más viejas y se intenta de nuevo
+        d.juegos = d.juegos.slice(-60); LS.set(this.clave(), d);
+    },
+    hoy() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; },
+    cambiar(fn) {
+        if (!Datos.base) return;
+        const d = this.leer(); fn(d);
+        const h = this.hoy(); d.dias[h] = (d.dias[h] || 0) + 1;
+        const ks = Object.keys(d.dias).sort(); ks.slice(0, Math.max(0, ks.length - this.DIAS)).forEach(k => delete d.dias[k]);
+        this.guardar(d);
+    },
+    vista(id) { if (id) this.cambiar(d => { d.vistas[id] = (d.vistas[id] || 0) + 1; }); },
+    _audios: null, _audiosBase: '',
+    escuchada(archivo) {
+        if (this._audiosBase !== Datos.base) { this._audios = new Map(); this._audiosBase = Datos.base; Datos.words.forEach(w => Object.values(w.t || {}).forEach(t => t && t.audio && this._audios.set(t.audio, w.id))); }
+        const id = this._audios.get(archivo); if (id) this.cambiar(d => { d.escuchadas[id] = (d.escuchadas[id] || 0) + 1; });
+    },
+    esFavorita(id) { return this.leer().favoritas.includes(id); },
+    alternarFavorita(id) {
+        let ahora = false;
+        this.cambiar(d => { const i = d.favoritas.indexOf(id); if (i >= 0) d.favoritas.splice(i, 1); else { d.favoritas.push(id); ahora = true; } });
+        return ahora;
+    },
+    juego(j) {
+        if (!j || (!j.total && !j.grupo)) return;
+        this.cambiar(d => { d.juegos.push(Object.assign({ f: Date.now() }, j)); if (d.juegos.length > this.MAX_PARTIDAS) d.juegos = d.juegos.slice(-this.MAX_PARTIDAS); });
+    },
+    /** Palabras «aprendidas» en el repaso con tarjetas (cajas 4 y 5), de todas las lenguas, de este perfil. */
+    aprendidas(perfil = Perfiles.actual()) {
+        let n = 0; const suf = perfil === 'p0' ? '' : ':' + perfil;
+        Datos.langs.forEach(l => { const est = LS.get(`repaso:${Datos.base}:${l.id}${suf}`, {}) || {}; n += Object.values(est).filter(e => e && e.c >= 4).length; });
+        return n;
+    },
+    resumen(perfil = Perfiles.actual()) {
+        const d = this.leer(perfil), ahora = Date.now(), sem = ahora - 7 * 864e5, mes = ahora - 30 * 864e5;
+        const mesJ = d.juegos.filter(j => j.f >= mes && j.total), bien = mesJ.reduce((a, j) => a + (j.bien || 0), 0), tot = mesJ.reduce((a, j) => a + (j.total || 0), 0);
+        const dias7 = Object.keys(d.dias).filter(k => new Date(k + 'T12:00').getTime() >= sem).length;
+        const ult = Math.max(0, ...d.juegos.map(j => j.f), ...Object.keys(d.dias).map(k => new Date(k + 'T12:00').getTime()));
+        return { vistas: Object.keys(d.vistas).length, escuchadas: Object.keys(d.escuchadas).length, favoritas: d.favoritas.filter(id => Datos.byId.has(id)).length,
+            aprendidas: this.aprendidas(perfil), partidas: d.juegos.length, partidas7: d.juegos.filter(j => j.f >= sem).length,
+            aciertos: tot ? Math.round(100 * bien / tot) : null, dias7, ultimo: ult || null, d };
+    },
+
+    /* ---------- Pantalla «Mi progreso» ---------- */
+    pintarBoton() { const b = $('btn-perfil'); if (b) { const p = Perfiles.datos(); b.textContent = p.emoji; b.title = _i('visor.prog.boton', { perfil: Perfiles.etiqueta() }); b.setAttribute('aria-label', b.title); } },
+    abrir() {
+        if (!Datos.cargado) return UI.toast(_i('visor.prog.sinCatalogo'));
+        const yo = Perfiles.actual(), r = this.resumen(), perfiles = [Perfiles.datos('p0'), ...Perfiles.lista()];
+        const tarjeta = (ico, n, k) => `<div class="prog-dato"><span class="ico" aria-hidden="true">${ico}</span><b>${n}</b><span>${_ih(k)}</span></div>`;
+        const fecha = f => new Date(f).toLocaleDateString(document.documentElement.lang || undefined, { day: 'numeric', month: 'short' });
+        const favs = r.d.favoritas.map(id => Datos.byId.get(id)).filter(Boolean);
+        UI.abrir(`<div class="form">
+            <h2 class="modal-titulo">📈 ${_ih('visor.prog.titulo')}</h2>
+            <p class="nota">🔒 ${_ih('visor.prog.privado')}</p>
+            <span class="t">${_ih('visor.prog.perfil')}</span>
+            <div class="chips" role="radiogroup">${perfiles.map(p => `<label class="chip"><input type="radio" name="pf" value="${esc(p.id)}" ${p.id === yo ? 'checked' : ''}> ${esc(p.emoji)} ${esc(p.apodo)}</label>`).join('')}
+                <button class="btn btn-secondary" id="pf-nuevo" style="min-height:36px;padding:4px 12px">＋ ${_ih('visor.prog.nuevo')}</button></div>
+            ${yo !== 'p0' ? `<div class="acciones" style="justify-content:flex-start;margin-top:4px"><button class="btn btn-secondary" id="pf-editar" style="min-height:34px;padding:4px 10px">✏️ ${_ih('visor.prog.editarPerfil')}</button></div>` : ''}
+            <div class="prog-datos">
+                ${tarjeta('👀', r.vistas, 'visor.prog.vistas')}${tarjeta('👂', r.escuchadas, 'visor.prog.escuchadas')}${tarjeta('⭐', r.favoritas, 'visor.prog.favoritas')}
+                ${tarjeta('🃏', r.aprendidas, 'visor.prog.aprendidas')}${tarjeta('🎲', r.partidas7, 'visor.prog.partidas7')}${tarjeta('📅', r.dias7, 'visor.prog.dias7')}
+            </div>
+            ${r.aciertos != null ? `<p class="nota">${_ih('visor.prog.aciertos', { n: r.aciertos })}</p>` : ''}
+            ${r.d.juegos.length ? `<h3>${_ih('visor.prog.ultimas')}</h3><div class="prog-lista">${r.d.juegos.slice(-8).reverse().map(j => `<div class="prog-fila"><span>${fecha(j.f)}</span><span>${esc(j.act || '')}${j.L ? ' · ' + esc(Datos.nombreLengua(j.L)) : ''}</span><b>${j.total ? `${j.bien || 0}/${j.total}` : '👥'}</b></div>`).join('')}</div>` : `<p class="nota">${_ih('visor.prog.sinPartidas')}</p>`}
+            ${favs.length ? `<h3>⭐ ${_ih('visor.prog.favoritas')}</h3><div class="rel-items">${favs.map(w => `<button class="chip-rel" data-ficha="${esc(w.id)}">${esc(Datos.texto(w))}</button>`).join('')}</div>` : ''}
+            ${perfiles.length > 1 ? `<details style="margin-top:12px"><summary><b>👥 ${_ih('visor.prog.todos')}</b></summary><p class="nota">${_ih('visor.prog.todos.d')}</p>
+                <div class="prog-lista">${perfiles.map(p => { const x = this.resumen(p.id); return `<div class="prog-fila"><span>${esc(p.emoji)} ${esc(p.apodo)}</span><span>👀 ${x.vistas} · 🃏 ${x.aprendidas} · 🎲 ${x.partidas}</span><b>${x.ultimo ? fecha(x.ultimo) : '—'}</b></div>`; }).join('')}</div></details>` : ''}
+            <h3>${_ih('visor.prog.compartir')}</h3>
+            <p class="nota">${_ih('visor.prog.compartir.d')}</p>
+            <div class="acciones" style="justify-content:flex-start;flex-wrap:wrap">
+                <button class="btn btn-primary" id="pf-compartir">📤 ${_ih('visor.prog.compartirResumen')}</button>
+                <button class="btn btn-secondary" id="pf-guardar">⬇️ ${_ih('visor.prog.guardarCopia')}</button>
+                <button class="btn btn-secondary" id="pf-recuperar">📥 ${_ih('visor.prog.recuperar')}</button>
+                <button class="btn btn-secondary" id="pf-borrar">🗑 ${_ih('visor.prog.borrar')}</button></div>
+            <input type="file" id="pf-archivo" accept=".json,application/json" class="oculto" hidden></div>`);
+        const B = $('modal-body');
+        B.querySelectorAll('input[name="pf"]').forEach(x => x.addEventListener('change', () => { Perfiles.elegir(x.value); this.abrir(); }));
+        $('pf-nuevo').addEventListener('click', () => this.editarPerfil());
+        if ($('pf-editar')) $('pf-editar').addEventListener('click', () => this.editarPerfil(yo));
+        $('pf-compartir').addEventListener('click', () => this.compartir());
+        $('pf-guardar').addEventListener('click', () => this.guardarCopia());
+        $('pf-recuperar').addEventListener('click', () => $('pf-archivo').click());
+        $('pf-archivo').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) this.recuperar(f); });
+        $('pf-borrar').addEventListener('click', () => {
+            if (!confirm(_i('visor.prog.borrar.c', { perfil: Perfiles.etiqueta() }))) return;
+            LS.del(this.clave()); Datos.langs.forEach(l => LS.del(`repaso:${Datos.base}:${l.id}${Perfiles.sufijo()}`)); this.abrir();
+        });
+    },
+    editarPerfil(id) {
+        const p = id ? Perfiles.datos(id) : { apodo: '', emoji: EMOJIS_PERFIL[Math.floor(Math.random() * EMOJIS_PERFIL.length)] };
+        UI.abrir(`<div class="form"><h2 class="modal-titulo">${id ? '✏️ ' + _ih('visor.prog.editarPerfil') : '＋ ' + _ih('visor.prog.nuevo')}</h2>
+            <p class="nota">${_ih('visor.prog.apodo.d')}</p>
+            <label class="t" for="pf-apodo">${_ih('visor.prog.apodo')}</label>
+            <input id="pf-apodo" class="input-box" maxlength="20" value="${esc(p.apodo)}" placeholder="${esc(_i('visor.prog.apodo.ej'))}">
+            <span class="t">${_ih('visor.prog.dibujo')}</span>
+            <div class="chips">${EMOJIS_PERFIL.map(e => `<label class="chip" style="font-size:1.3em"><input type="radio" name="pf-e" value="${e}" ${e === p.emoji ? 'checked' : ''}> ${e}</label>`).join('')}</div>
+            <div id="pf-msg"></div>
+            <div class="acciones">${id ? `<button class="btn btn-secondary" id="pf-quitar">🗑 ${_ih('visor.prog.quitarPerfil')}</button>` : ''}<button class="btn btn-secondary" id="pf-no">${_ih('visor.cancelar')}</button><button class="btn btn-primary" id="pf-ok">💾 ${_ih('visor.prog.guardarPerfil')}</button></div></div>`);
+        $('pf-no').addEventListener('click', () => this.abrir());
+        $('pf-ok').addEventListener('click', () => {
+            const apodo = $('pf-apodo').value.trim(), emoji = (document.querySelector('input[name="pf-e"]:checked') || {}).value || '⭐';
+            if (!apodo) { $('pf-msg').innerHTML = `<div class="error-box">${_ih('visor.prog.apodo.falta')}</div>`; return; }
+            if (id) Perfiles.renombrar(id, apodo, emoji); else Perfiles.elegir(Perfiles.crear(apodo, emoji).id);
+            Progreso.pintarBoton(); this.abrir();
+        });
+        if ($('pf-quitar')) $('pf-quitar').addEventListener('click', () => { if (confirm(_i('visor.prog.quitarPerfil.c', { perfil: Perfiles.etiqueta(id) }))) { Perfiles.borrar(id); this.abrir(); } });
+    },
+    /** Resumen breve, sin nombres: lo comparte la persona si quiere (menú de compartir del aparato, o se copia). */
+    textoResumen() {
+        const r = this.resumen(), p = Perfiles.datos();
+        return [_i('visor.prog.resumen.titulo', { catalogo: Datos.cfg.titulo || '', perfil: `${p.emoji} ${p.id === 'p0' ? '' : p.apodo}`.trim(), fecha: new Date().toLocaleDateString() }),
+            `👀 ${_i('visor.prog.vistas')}: ${r.vistas}`, `👂 ${_i('visor.prog.escuchadas')}: ${r.escuchadas}`, `⭐ ${_i('visor.prog.favoritas')}: ${r.favoritas}`,
+            `🃏 ${_i('visor.prog.aprendidas')}: ${r.aprendidas}`, `🎲 ${_i('visor.prog.partidas7')}: ${r.partidas7}`, `📅 ${_i('visor.prog.dias7')}: ${r.dias7}`,
+            r.aciertos != null ? _i('visor.prog.aciertos', { n: r.aciertos }).replace(/\*/g, '') : ''].filter(Boolean).join('\n');
+    },
+    async compartir() {
+        const texto = this.textoResumen();
+        try { if (navigator.share) { await navigator.share({ title: _i('visor.prog.titulo'), text: texto }); return; } } catch (e) { if (e.name === 'AbortError') return; }
+        try { await navigator.clipboard.writeText(texto); UI.toast(_i('visor.prog.copiado')); } catch (e) { prompt(_i('visor.prog.copia'), texto); }
+    },
+    guardarCopia() {
+        const p = Perfiles.datos(), suf = Perfiles.sufijo(), repaso = {};
+        Datos.langs.forEach(l => { const v = LS.get(`repaso:${Datos.base}:${l.id}${suf}`, null); if (v) repaso[l.id] = v; });
+        const datos = { formato: 'glosario-progreso-1', catalogo: Datos.cfg.idCatalogo || '', titulo: Datos.cfg.titulo || '', perfil: { apodo: p.apodo, emoji: p.emoji }, fecha: new Date().toISOString(), progreso: this.leer(), repaso };
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(datos)], { type: 'application/json' }));
+        a.download = `progreso_${(p.apodo || 'aparato').normalize('NFD').replace(/[^\w-]+/g, '')}_${this.hoy()}.json`; document.body.appendChild(a); a.click(); a.remove();
+        UI.toast(_i('visor.prog.copiaGuardada'));
+    },
+    async recuperar(f) {
+        try {
+            const j = JSON.parse(await f.text());
+            if (j.formato !== 'glosario-progreso-1' || !j.progreso) throw new Error(_i('visor.prog.recuperar.mal'));
+            if (j.catalogo && Datos.cfg.idCatalogo && j.catalogo !== Datos.cfg.idCatalogo) throw new Error(_i('visor.prog.recuperar.otro', { titulo: j.titulo || j.catalogo }));
+            if (!confirm(_i('visor.prog.recuperar.c', { perfil: Perfiles.etiqueta() }))) return;
+            LS.set(this.clave(), j.progreso);
+            Object.entries(j.repaso || {}).forEach(([L, v]) => LS.set(`repaso:${Datos.base}:${L}${Perfiles.sufijo()}`, v));
+            UI.toast(_i('visor.listo')); this.abrir();
+        } catch (e) { UI.toast(e.message, 5000); }
+    },
+    /** Botón ⭐ en la ficha de cada palabra. */
+    botonFavorita(id) {
+        const h = $('modal-body') && $('modal-body').querySelector('.modal-titulo'); if (!h || $('f-fav')) return;
+        const pinta = b => { const si = this.esFavorita(id); b.textContent = si ? '⭐ ' + _i('visor.prog.esFavorita') : '☆ ' + _i('visor.prog.marcarFavorita'); b.setAttribute('aria-pressed', si ? 'true' : 'false'); };
+        h.insertAdjacentHTML('afterend', `<div style="text-align:center;margin:-4px 0 8px"><button class="btn btn-secondary" id="f-fav" style="min-height:34px;padding:4px 12px"></button></div>`);
+        const b = $('f-fav'); pinta(b);
+        b.addEventListener('click', () => { this.alternarFavorita(id); pinta(b); });
+    }
+};
+
+/* Se registran las actividades sin tocar cada juego: se envuelven sus finales */
+(() => {
+    const abrirFicha = Ficha.abrir.bind(Ficha);
+    Ficha.abrir = id => { abrirFicha(id); try { Progreso.vista(id); Progreso.botonFavorita(id); } catch (e) {} };
+    const tocar = Sonido.tocar.bind(Sonido);
+    Sonido.tocar = async (archivo, boton) => { await tocar(archivo, boton); try { if (Sonido.actual && !Sonido.actual.paused) Progreso.escuchada(archivo); } catch (e) {} };
+    const finMotor = Motor.prototype.final;
+    Motor.prototype.final = function (titulo, L) {
+        try { Progreso.juego({ act: String(titulo || '').replace(/^\W+\s*/u, ''), L, bien: this.registro.filter(x => x.ok).length, total: this.registro.length, grupo: this.jugadores.length > 1 }); } catch (e) {}
+        return finMotor.call(this, titulo, L);
+    };
+    const finRondas = Rondas.final.bind(Rondas);
+    Rondas.final = (r, otra) => { try { Progreso.juego({ act: r.titulo, L: r.L, bien: r.bien, total: r.total }); } catch (e) {} return finRondas(r, otra); };
+    [['Basta', 'basta'], ['Charadas', 'charadas']].forEach(([nombre, id]) => {
+        const o = window[nombre] || (nombre === 'Basta' ? Basta : Charadas), fin = o.final.bind(o);
+        o.final = (...a) => { try { Progreso.juego({ act: _i('visor.act.' + id), L: (o.cfg && o.cfg.L) || Datos.lengua, grupo: true }); } catch (e) {} return fin(...a); };
+    });
+})();
+
+/* ---------- Instalar como app y funcionar sin conexión ---------- */
+const Instalar = {
+    pedido: null,
+    esIOS: /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1),
+    instalada: () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true,
+    _persistido: false,
+    /** Pide al aparato que no borre lo guardado (progreso, copia del catálogo, descargas). */
+    persistir() { if (this._persistido) return; this._persistido = true; try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {} },
+    iniciar() {
+        const b = $('btn-instalar');
+        window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); this.pedido = e; b.hidden = false; });
+        window.addEventListener('appinstalled', () => { b.hidden = true; UI.toast(_i('visor.inst.lista')); this.persistir(); });
+        if (this.esIOS && !this.instalada()) b.hidden = false;
+        b.addEventListener('click', () => this.abrir());
+        if (this.instalada()) this.persistir();
+        if (!('serviceWorker' in navigator) || !(location.protocol === 'https:' || location.hostname === 'localhost')) return;
+        const habia = !!navigator.serviceWorker.controller;
+        navigator.serviceWorker.addEventListener('controllerchange', () => { if (habia && !Juego.activo) location.reload(); });
+        navigator.serviceWorker.register('sw.js').then(r => r.addEventListener('updatefound', () => {
+            const n = r.installing; if (!n) return;
+            n.addEventListener('statechange', () => {
+                if (n.state !== 'installed' || !navigator.serviceWorker.controller) return;
+                const d = document.createElement('div'); d.className = 'toast toast-accion'; d.setAttribute('role', 'status');
+                d.innerHTML = `${_ih('visor.inst.nueva')} <button class="btn btn-primary" style="min-height:32px;padding:4px 10px;margin-left:8px">${_ih('visor.inst.actualizar')}</button>`;
+                d.querySelector('button').addEventListener('click', () => { if (Juego.activo) return UI.toast(_i('visor.inst.termina')); n.postMessage('saltar'); });
+                document.body.appendChild(d);
+            });
+        })).catch(() => {});
+    },
+    async abrir() {
+        if (this.pedido) { this.pedido.prompt(); await this.pedido.userChoice.catch(() => {}); this.pedido = null; $('btn-instalar').hidden = true; return; }
+        UI.abrir(`<div class="form"><h2 class="modal-titulo">⬇️ ${_ih('visor.inst.titulo')}</h2>
+            ${this.esIOS ? `<p>${_ih('visor.inst.ios1')}</p><p>${_ih('visor.inst.ios2')}</p><p>${_ih('visor.inst.ios3')}</p><div class="caja">${_ih('visor.inst.ios.d')}</div>`
+                : `<p>${_ih('visor.inst.android')}</p><p>${_ih('visor.inst.pc')}</p>`}
+            <p class="nota">${_ih('visor.inst.d')}</p>
+            <div class="acciones"><button class="btn btn-primary" onclick="UI.cerrarModal()">${_ih('visor.inst.entendido')}</button></div></div>`);
+    }
+};
+</script>
+<script>
+/* =============================================
    HOJAS PARA IMPRIMIR (carta vertical, 5 mm de margen)
    Las instrucciones se pueden escribir en la lengua de la comunidad.
    ============================================= */
@@ -8428,6 +8788,7 @@ function msg(html) { const m = $('lot-msg'); if (m) m.innerHTML = `<div class="c
     window.addEventListener('online', () => Estado.alVolver());
     window.addEventListener('online', () => Propuestas.enviarCola());
     document.addEventListener('visibilitychange', () => { if (!document.hidden) Propuestas.enviarCola(); });
+    Instalar.iniciar(); Progreso.pintarBoton();
     Datos.iniciar().then(async () => { if (Datos.cargado) { await Offline.iniciar(); UI.refrescar(); Loteria.revisarEnlace(); Actividades.revisarEnlace(); Propuestas.revisarEnlace(); revisarEnlaceOir(); Propuestas.enviarCola(); } });
 })();
 </script>

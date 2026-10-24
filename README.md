@@ -72,6 +72,7 @@ El visor solo lee lo que la hoja publica: una copia preparada de lo que está **
 - ✅ **Primeros pasos:** un asistente que prepara todo el catálogo.
 - ✅ **Editar palabras:** buscar en cualquier lengua, corregir, agregar, cambios en bloque, aviso de palabras repetidas y relaciones entre palabras.
 - ✅ **Imágenes y sonidos:** asignar, revisar y trabajar con quien ilustra, con créditos y notas internas.
+- ✅ **Traer audios en lote:** cada archivo va a la traducción cuyo texto coincide con su nombre; todo queda en revisión.
 - ✅ **Revisar y publicar:** estados Borrador, En revisión, Publicado y Retirado; el visor solo muestra lo publicado.
 - ✅ **Colaborar:** hojas para quien traduce o ilustra, traer lo que llenaron, e intercambio con otras comunidades.
 - ✅ **Visor: conexión y mantenimiento:** dirección y claves, clave del equipo, mantenimiento («congelar» o «cerrar», programado o inmediato), avisos, imagen del catálogo y frecuencia de actualización.
@@ -119,7 +120,7 @@ En los tres, después:
 
 > La dirección es pública por diseño: solo entrega lo publicado. Si quieres limitar quién ve el visor, crea una **clave** en la misma ventana.
 
-¿Quieres publicar tu propia copia del visor? Sube `index.html` a cualquier alojamiento (por ejemplo, GitHub Pages). No hay que modificarlo para cada comunidad.
+¿Quieres publicar tu propia copia del visor? Sube `index.html`, `manifest.webmanifest`, `sw.js` y la carpeta `iconos/` a cualquier alojamiento con https (por ejemplo, GitHub Pages). No hay que modificarlos para cada comunidad; si quieres que la app instalada lleve el nombre de tu catálogo, cambia `name` y `short_name` en `manifest.webmanifest`.
 
 Para preparar la app de AppSheet, consulta [docs/APPSHEET.md](docs/APPSHEET.md).
 
@@ -131,7 +132,7 @@ Para preparar la app de AppSheet, consulta [docs/APPSHEET.md](docs/APPSHEET.md).
 2. **Implementar → Gestionar implementaciones → ✏️ → Versión: Nueva → Implementar.**
    ⚠️ **No crees una «Nueva implementación»**: cambiaría la dirección y el visor dejaría de encontrar el catálogo.
 3. Ejecuta **🔧 Mantenimiento → 🧩 Revisar y reparar el catálogo** para crear las hojas o columnas nuevas.
-4. Reemplaza `index.html` en tu alojamiento.
+4. Reemplaza `index.html` en tu alojamiento (y, desde la 1.2, también `manifest.webmanifest`, `sw.js` e `iconos/`).
 
 Si necesitas hacer cambios grandes sin que el público vea el catálogo a medias, usa **mantenimiento**:
 - **Congelar:** el público sigue viendo la versión anterior mientras el equipo trabaja.
@@ -170,6 +171,7 @@ Si necesitas hacer cambios grandes sin que el público vea el catálogo a medias
 | Archivo o carpeta | Qué es |
 |---|---|
 | `index.html` | El visor, listo para publicar (GitHub Pages lo sirve desde aquí). |
+| `manifest.webmanifest`, `sw.js`, `iconos/` | Para instalar el visor como app y abrirlo sin internet. Al publicar una versión nueva del visor, cambia `VERSION` en `sw.js`. |
 | `Codigo.gs` | El programa del catálogo: se pega en Apps Script de la hoja. |
 | `docs/REPLICAR.md` | Crear el catálogo de tu comunidad, paso a paso. |
 | `docs/APPSHEET.md` | Guía para preparar la app de captura y su plantilla. |
@@ -179,7 +181,7 @@ Si necesitas hacer cambios grandes sin que el público vea el catálogo a medias
 | `CHANGELOG.md` | Qué cambió en cada versión y qué hacer al actualizar. |
 | `LICENSE`, `NOTICE.md` | Licencia AGPL-3.0 y términos adicionales (crédito de autoría). |
 
-Para replicar el catálogo solo necesitas `Codigo.gs` e `index.html`; lo demás sirve para entender y mejorar el programa.
+Para replicar el catálogo necesitas `Codigo.gs` y el visor (`index.html`, `manifest.webmanifest`, `sw.js`, `iconos/`); lo demás sirve para entender y mejorar el programa.
 
 ---
 

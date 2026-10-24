@@ -272,6 +272,7 @@ Cada ventana es HTML armado en una plantilla de texto dentro de su función `ui*
 | `07c_propuestas.js` | `Propuestas`: formularios, cola sin conexión, Mis propuestas, Dónde ayudar. |
 | `07d_impresos.js` | `Impresos` (registro de materiales para imprimir), sopa, crucigrama, ordena, Basta, memorama, QR, Pregunta en casa, recolección. |
 | `07e_letras.js` | ¿Con qué letra empieza? (papel y pantalla), sílabas, arma con sílabas, trazo, Escucha y señala, glosario, cotejo. |
+| `07f_progreso.js` | `Copia` (catálogo guardado en IndexedDB), `Perfiles` (locales, por apodo), `Progreso` (vistas, escuchadas, favoritas, partidas; envuelve `Ficha.abrir`, `Sonido.tocar`, `Motor.final`, `Rondas.final`, `Basta.final`, `Charadas.final`) e `Instalar` (app instalable, service worker, `storage.persist`). |
 | `08_hojas_inicio.js` | Hojas de trabajo, etiquetas y tarjetas; arranque de la página. |
 
 Los objetos son constantes globales. Las ventanas de vista previa de impresión (otra pestaña) acceden al visor por `window.opener`, así que lo que necesiten debe estar expuesto en `window` (`window.Pistas`, `window.Impresos`, `window.Propuestas`).
@@ -291,7 +292,10 @@ Los objetos son constantes globales. Las ventanas de vista previa de impresión 
 
 ### Lo que se guarda en el dispositivo
 - `localStorage` (casi todo por catálogo, con la dirección como parte de la clave; los ajustes de impresión y el idioma de la interfaz son del dispositivo): catálogo guardado, lengua elegida, Mis listas, Mis actividades, pistas propias, ajustes de impresión, propuestas enviadas, avisos cerrados, idioma de la interfaz.
-- IndexedDB `catalogo-lenguas-medios`: imágenes y audios de 📥 Llevar sin conexión y la cola de propuestas sin enviar.
+- IndexedDB `catalogo-lenguas-medios`: imágenes y audios de 📥 Llevar sin conexión, la cola de propuestas sin enviar y, desde la 1.2, la copia del catálogo (`<dirección>|cat|datos`; la de `localStorage` `cat:<dirección>` se migra sola).
+- Progreso (1.2), en `localStorage`: `perfiles` y `perfil_actual` (del dispositivo), `prog:<dirección>:<perfil>` (vistas, escuchadas, favoritas, partidas, días) y el repaso `repaso:<dirección>:<lengua>[:<perfil>]`. El perfil `p0` («Este aparato») no lleva sufijo, para conservar el repaso de versiones anteriores.
+- **Regla:** nada de esto se envía. Solo sale del aparato si la persona toca «Compartir mi resumen» o «Guardar copia de mi progreso». No se piden ni guardan nombres reales.
+- La app instalada: `manifest.webmanifest`, `sw.js` (guarda solo los archivos del visor; las consultas al catálogo pasan directo) e `iconos/`.
 
 Cambiar el nombre de una clave de almacenamiento hace que las personas «pierdan» lo guardado. Si hace falta, lee la clave vieja y migra.
 

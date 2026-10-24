@@ -10,7 +10,7 @@
    predeterminado de este visor, pero desde 🔌 se puede abrir otro y volver. */
 const API_URL   = "";
 const API_TOKEN = "";
-const VERSION_VISOR = '1.1';
+const VERSION_VISOR = '1.2';
 /* Textos de la interfaz en español (base de todas las traducciones). Se generan con el catálogo: no editar a mano. */
 const V_ES = /*V_ES*/{};
 
@@ -259,6 +259,14 @@ const Texto = {
 /** Catálogos abiertos en este dispositivo: dirección, su clave y su título (para volver a ellos). */
 const Catalogos = {
     limpiar(u) { return String(u || '').trim().split('?')[0].split('#')[0]; },
+    /** Lee lo que la persona pega: la dirección del catálogo o un enlace de invitación del visor (…?api=…&token=…). */
+    desdeEnlace(texto) {
+        const s = String(texto || '').trim(), m = s.match(/https?:\/\/\S+/); if (!m) return { url: '', token: '' };
+        let u; try { u = new URL(m[0]); } catch (e) { return { url: '', token: '' }; }
+        const api = u.searchParams.get('api');
+        if (api) return { url: this.limpiar(api), token: (u.searchParams.get('token') || '').trim() };
+        return { url: this.limpiar(m[0]), token: '' };
+    },
     lista() { const l = LS.get('glosario_catalogos', []); return Array.isArray(l) ? l : []; },
     clave(url) {
         const c = this.lista().find(x => x.url === url);
@@ -273,7 +281,7 @@ const Catalogos = {
         l.unshift({ url, token: token || '', titulo: titulo || previo.titulo || '' });
         LS.set('glosario_catalogos', l.slice(0, 12)); LS.del('glosario_token');
     },
-    olvidar(url) { LS.set('glosario_catalogos', this.lista().filter(x => x.url !== url)); LS.del('cat:' + url); if (LS.get('glosario_url', '') === url) LS.del('glosario_url'); }
+    olvidar(url) { LS.set('glosario_catalogos', this.lista().filter(x => x.url !== url)); LS.del('cat:' + url); Copia.borrar(url); if (LS.get('glosario_url', '') === url) LS.del('glosario_url'); }
 };
 
 /* =============================================
@@ -293,7 +301,7 @@ const Estado = {
         if (!offline) {
             // Borrado precautorio: si el catálogo lo pidió, la copia de este dispositivo se va
             const p = String(est.purga || ''), k = 'purga:' + Datos.base;
-            if (p && LS.get(k, '') !== p) { if (LS.get('cat:' + Datos.base)) this.purgado = true; LS.del('cat:' + Datos.base); LS.set(k, p); }
+            if (p && LS.get(k, '') !== p) { if (LS.get('cat:' + Datos.base) || Copia.hay(Datos.base)) this.purgado = true; LS.del('cat:' + Datos.base); Copia.borrar(Datos.base); LS.set(k, p); }
         }
         this.e = est; this.mant = mant;
         this.cerrado = !!(mant && mant.modo === 'cerrar' && this.rol !== 'equipo');
@@ -416,7 +424,7 @@ const Datos = {
         // Lo recordado primero (avisos, mantenimiento): si el catálogo estaba cerrado, no se muestra la copia
         const rec = Estado.recordado();
         if (rec) Estado.aplicar({ estado: rec.estado, mantenimiento: rec.mantenimiento, rol: rec.rol }, true);
-        const copia = Estado.cerrado ? null : LS.get('cat:' + this.base);
+        const copia = Estado.cerrado ? null : await Copia.leer(this.base);
         if (Estado.cerrado) Estado.pantalla();
         else if (copia && copia.data) { this.cargar(copia.data, copia.version); UI.refrescar(); UI.estadoConexion(_i(navigator.onLine ? 'visor.con.actualizando' : 'visor.con.guardada'), !navigator.onLine); }
         await this.actualizar(false);
@@ -428,10 +436,10 @@ const Datos = {
     async actualizar(silencioso) {
         try {
             const m = await this.api({ action: 'manifiesto' }, 8000).catch(() => null);
-            if (m && m.status === 401) { LS.del('cat:' + this.base); this.cargado = false; throw new Error(_i('visor.con.clave')); }   // sin la clave correcta no se muestra ni lo guardado
+            if (m && m.status === 401) { Copia.borrar(this.base); this.cargado = false; throw new Error(_i('visor.con.clave')); }   // sin la clave correcta no se muestra ni lo guardado
             if (m && (m.status === 200 || m.status === 503)) Estado.aplicar(m);
             if (Estado.cerrado) { this.cargado = false; Estado.pantalla(); UI.estadoConexion(_i('visor.mant.estado'), true, '🚧'); return !!m; }
-            const copia = LS.get('cat:' + this.base), version = (m && m.version) || '';
+            const copia = await Copia.leer(this.base), version = (m && m.version) || '';
             if (m && version && copia && copia.version === version) {
                 if (!this.cargado) { this.cargar(copia.data, copia.version); UI.refrescar(); }   // p. ej. al volver de la pantalla de mantenimiento
                 UI.estadoConexion(_i('visor.con.aldia'));
@@ -440,12 +448,12 @@ const Datos = {
             if (!m && this.cargado) { UI.estadoConexion(_i('visor.con.guardada'), true); return false; }
             const r = await this.api({ action: 'glosario' }, 20000);
             if (r.status === 503) { Estado.aplicar(r); this.cargado = false; Estado.pantalla(); return true; }
-            if (r.status === 401) { LS.del('cat:' + this.base); this.cargado = false; throw new Error(_i('visor.con.clave')); }
+            if (r.status === 401) { Copia.borrar(this.base); this.cargado = false; throw new Error(_i('visor.con.clave')); }
             if (r.status !== 200 || !r.data) throw new Error(r.error || _i('visor.con.inesperada'));
             const eraCargado = this.cargado, antes = this.version, y = window.scrollY;
             this.cargar(r.data, r.version || version);
             Catalogos.recordar(this.base, this.token, this.cfg.titulo);
-            if (!LS.set('cat:' + this.base, { version: r.version || version, data: r.data, t: Date.now() })) console.warn('Sin espacio para guardar la copia sin conexión.');
+            if (!(await Copia.guardar(this.base, { version: r.version || version, data: r.data, t: Date.now() }))) console.warn('Sin espacio para guardar la copia sin conexión.');
             UI.estadoConexion(_i('visor.con.aldia'));
             UI.refrescar();
             if (silencioso && eraCargado && antes !== this.version) { window.scrollTo(0, y); UI.toast(_i('visor.con.nuevaVersion')); }
@@ -720,6 +728,8 @@ const UI = {
             ${error ? `<div class="error-box">${esc(error)}</div>` : ''}
             <p class="nota">${_ih('visor.cx.d')}</p>
             <label class="nota" for="cx-url">${_ih('visor.cx.direccion')}</label><input id="cx-url" class="input-box" value="${esc(Datos.base)}" autocomplete="off" spellcheck="false">
+            <p class="nota">${_ih('visor.cx.enlace.d')}</p>
+            ${navigator.clipboard && navigator.clipboard.readText ? `<button class="btn btn-secondary" style="min-height:34px;padding:4px 12px" id="cx-pegar">📋 ${_ih('visor.cx.pegar')}</button>` : ''}
             <label class="nota" for="cx-tok">${_ih('visor.cx.clave')}</label><input id="cx-tok" class="input-box" value="${esc(pideClave ? '' : Datos.token)}" autocomplete="off" spellcheck="false">
             <p class="nota">${_ih('visor.cx.clave.d')}</p>
             <button class="btn btn-primary btn-block" style="margin-top:10px" id="cx-ok">${_ih('visor.cx.conectar')}</button>
@@ -728,10 +738,14 @@ const UI = {
             ${rec.length ? `<h3>${_ih('visor.cx.recientes')}</h3>${rec.map((c, i) => `<div class="fila" style="margin:4px 0"><button class="btn btn-secondary" style="flex:1;text-align:left" data-rec="${i}">${esc(c.titulo || c.url.replace(/^https:\/\/script\.google\.com\/macros\/s\//, '').slice(0, 24) + '…')}</button><button class="btn btn-secondary" data-olvidar="${i}" title="${esc(_i('visor.cx.olvidar'))}" aria-label="${esc(_i('visor.cx.olvidar'))}">✕</button></div>`).join('')}` : ''}
         </div>`;
         const ir = (url, tok) => { url = Catalogos.limpiar(url); if (!url) return; Catalogos.recordar(url, tok); LS.set('glosario_url', url); location.href = location.pathname; };
+        // Si se pega un enlace de invitación, la dirección y la clave se toman de ahí
+        const leerEnlace = () => { const e = Catalogos.desdeEnlace($('cx-url').value); if (e.url && e.url !== $('cx-url').value.trim()) { $('cx-url').value = e.url; if (e.token) $('cx-tok').value = e.token; UI.toast(_i('visor.cx.enlaceLeido')); } return e; };
+        $('cx-url').addEventListener('change', leerEnlace); $('cx-url').addEventListener('paste', () => setTimeout(leerEnlace, 0));
+        $('cx-pegar')?.addEventListener('click', async () => { try { $('cx-url').value = await navigator.clipboard.readText(); leerEnlace(); } catch (e) { UI.toast(_i('visor.cx.pegar.error')); } });
         $('cx-ok').onclick = () => {
-            const url = Catalogos.limpiar($('cx-url').value);
+            const e = leerEnlace(), url = e.url || Catalogos.limpiar($('cx-url').value);
             if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(url)) return UI.toast(_i('visor.cx.error.direccion'));
-            ir(url, $('cx-tok').value.trim());
+            ir(url, $('cx-tok').value.trim() || e.token);
         };
         $('cx-volver')?.addEventListener('click', () => UI.refrescar());
         $('cx-pred')?.addEventListener('click', () => { LS.del('glosario_url'); location.href = location.pathname; });
@@ -959,6 +973,7 @@ const ACTIVIDADES = [
     { sec: 'jugar', ico: '😵', id: 'ahorcado', d: '', req: { campo: 'largas', min: 6 }, abrir: () => Ahorcado.setup() },
     { sec: 'jugar', ico: '🧩', id: 'sopa', d: '', req: { campo: 'largas', min: 6 }, abrir: () => Sopa.setup() },
     // Aprender
+    { sec: 'aprender', ico: '📈', id: 'progreso', d: '', abrir: () => Progreso.abrir() },
     { sec: 'aprender', ico: '🃏', id: 'repaso', d: '', req: { campo: 'img', min: 5 }, abrir: () => Repaso.abrir() },
     { sec: 'aprender', ico: '👂', id: 'escucha', d: '', req: { campo: 'imgAudio', min: 4 }, abrir: () => Escucha.abrir() },
     { sec: 'aprender', ico: '🌎', id: 'enquelengua', d: '', req: { campo: 'lenguas', min: 2 }, abrir: () => EnQueLengua.abrir() },

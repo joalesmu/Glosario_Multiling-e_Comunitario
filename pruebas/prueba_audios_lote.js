@@ -1,0 +1,65 @@
+// Traer audios en lote por nombre de archivo
+const fs=require('fs'); eval(fs.readFileSync(process.argv[3],'utf8'));
+const ss=T.SS; let fallos=0; const ok=(c,m)=>{console.log((c?'✔ ':'✘ ')+m); if(!c) fallos++;};
+global.DLG={}; global.HtmlService={createHtmlOutput:h=>({h,setWidth(){return this},setHeight(){return this},setTitle(){return this}})};
+const ui0=SpreadsheetApp.getUi; SpreadsheetApp.getUi=()=>Object.assign(ui0(),{showModalDialog:(o,t)=>{DLG[t]=o.h;},showSidebar:o=>{DLG.sidebar=o.h;}});
+_activarAutomatizacion=()=>{};
+T.setSheets([new T.Sheet('Hoja 1')]);
+instalarCatalogo({proyecto:'Acervo',lenguas:[{nombre_propio:'Wixárika',codigo_iso:'wix',atajos:'+=ɨ'},{nombre_completo:'Español',codigo_iso:'spa'}],categorias:'casa',carpetas:false});
+const W=_s(readSheet(ss,'IDIOMAS')[0].id_idioma), E=_s(readSheet(ss,'IDIOMAS')[1].id_idioma);
+_agregar(_tabla(ss,'PALABRAS'),['P1','P2','P3','P4','P5','P6'].map(id=>({id_palabra:id,estado:'Publicado'})));
+const tr=(id,p,L,texto,extra)=>Object.assign({id_traduccion:id,id_palabra:p,id_idioma:L,texto,estado:'Publicado'},extra||{});
+_agregar(_tabla(ss,'TRADUCCIONES'),[tr('T1','P1',W,'kiitɨ'),tr('T2','P1',E,'casa'),tr('T3','P2',W,'nawɨ'),tr('T4','P3',W,'ha, hamuta',{audio:'https://drive.google.com/file/d/AUDIOVIEJO0000000000000001/view'}),
+  tr('T5','P4',W,'mɨ'),tr('T6','P5',W,'mɨ'),tr('T7','P6',W,'tatéwari'),tr('T8','P2',E,'tejuino')]);
+// Drive simulado
+const ARCH={}; let nA=0;
+const arch=(nombre,kb)=>{ const id='F'+String(++nA).padStart(24,'0'); ARCH[id]={id,nombre,kb,getId:()=>id,getName:()=>nombre,getSize:()=>kb*1024,getMimeType:()=>'',isTrashed:()=>false,getBlob:()=>({getBytes:()=>[1],getContentType:()=>'audio/mpeg'})}; return ARCH[id]; };
+const lista=a=>{let i=0;return{hasNext:()=>i<a.length,next:()=>a[i++]};};
+const wav=arch('kiitɨ.wav',4000); const sub={getName:()=>'archivo_wav',getFiles:()=>lista([wav]),getFolders:()=>lista([])};
+const raiz=[arch('kiitɨ.m4a',40),arch('naw+ (1).m4a',35),arch('Hamuta_2.m4a',30),arch('mɨ.m4a',20),arch('tatewari__Rosa.ogg',22),arch('xyz.m4a',10),arch('notas.txt',1),arch('ha-20261023_101530.m4a',25)];
+const CARPETA={getName:()=>'Grabaciones octubre',getFiles:()=>lista(raiz),getFolders:()=>lista([sub])};
+DriveApp.getFolderById=id=>{ if(id==='CARPETAxxxxxxxxxxxxxxxxxxxx1') return CARPETA; throw new Error('no'); };
+const g0=DriveApp.getFileById; DriveApp.getFileById=id=>ARCH[id]||g0(id);
+const url='https://drive.google.com/drive/folders/CARPETAxxxxxxxxxxxxxxxxxxxx1';
+ok(_nombreAudio('kiitɨ (1).m4a')==='kiitɨ' && _nombreAudio('el_rancho_2.m4a')==='el rancho' && _nombreAudio('kiitɨ__Rosa.ogg')==='kiitɨ' && _nombreAudio('ha-20261023_101530.m4a')==='ha','limpia los nombres de archivo');
+const v=mediosLoteVista({url,idioma:W});
+const de=n=>v.grupos.find(g=>g.nombre===n)||{};
+ok(v.total===8,'lee los audios de la carpeta y su subcarpeta, sin el .txt: '+v.total);
+ok(de('kiitɨ').estado==='ok' && de('kiitɨ').archivos.length===2 && de('kiitɨ').archivos.some(a=>a.calidad==='archivo'),'junta las dos calidades de «kiitɨ»');
+ok(de('nawɨ').estado==='ok','aplica los atajos: «naw+ (1)» → nawɨ');
+ok(de('Hamuta').estado==='conAudio' && de('Hamuta').candidatos[0].p==='P3','coincide con una variante («ha, hamuta») sin importar mayúsculas');
+ok(de('mɨ').estado==='dudoso' && de('mɨ').candidatos.length===2,'misma forma en dos palabras: por confirmar');
+ok(de('tatewari').estado==='dudoso','sin acento solo coincide «suave»: por confirmar');
+ok(de('xyz').estado==='sin','sin coincidencia');
+ok(de('ha').estado==='conAudio','ya tiene audio: aparte');
+const g=(n)=>de(n);
+let r=mediosLoteTraer({url,idioma:W,id_voz:''},[{p:'P1',refs:g('kiitɨ').archivos.map(a=>a.ref)},{p:'P2',refs:g('nawɨ').archivos.map(a=>a.ref)},{p:'P4',refs:g('mɨ').archivos.map(a=>a.ref)}]);
+const M=readSheet(ss,'MEDIOS_PROPUESTOS');
+ok(r.propuestas===4 && M.length===4 && M.every(m=>m.estado==='Pendiente' && m.tipo==='audio'),'trae 4 audios como propuestas pendientes');
+ok(M.filter(m=>m.id_palabra==='P1').map(m=>m.calidad).sort().join()==='archivo,consulta','cada calidad en su lugar');
+ok(!readSheet(ss,'TRADUCCIONES').find(t=>t.id_traduccion==='T1').audio,'nada cambia en TRADUCCIONES antes de revisar');
+const v2=mediosLoteVista({url,idioma:W});
+ok(v2.grupos.find(x=>x.nombre==='kiitɨ').estado==='yaEsta','lo ya traído no se vuelve a ofrecer');
+r=mediosLoteTraer({url,idioma:W},[{p:'P1',refs:g('kiitɨ').archivos.map(a=>a.ref)}]);
+ok(r.propuestas===0 && r.omitidos===2,'no duplica');
+// aceptar en Revisar → pasa a la traducción
+const ids=readSheet(ss,'MEDIOS_PROPUESTOS').filter(m=>m.id_palabra==='P1').map(m=>m.id_medio);
+_buscarArchivoAudio=v=>ARCH[_idDrive(v)]||null;
+mediosRevisar(ids,'aceptar');
+const t1=readSheet(ss,'TRADUCCIONES').find(t=>t.id_traduccion==='T1');
+ok(t1.audio && t1.audio_archivo && t1.consentimiento==='Pendiente','al aceptar: audio de consulta y de archivo; sin voz, el consentimiento queda pendiente (no se publica)');
+// Zip
+const blobs=[{getName:()=>'audios/tejuino.m4a',getBytes:()=>new Array(100),setName(x){this.n=x;return this}},{getName:()=>'__MACOSX/._tejuino.m4a',getBytes:()=>[1],setName(){return this}},{getName:()=>'leeme.txt',getBytes:()=>[1],setName(){return this}}];
+Utilities.unzip=b=>blobs;
+const ZIP={getName:()=>'lote.zip',getMimeType:()=>'application/zip',getSize:()=>1000,getBlob:()=>({setContentType(){return this}})};
+ARCH['ZIPxxxxxxxxxxxxxxxxxxxxxxx1']=ZIP;
+let creados=0; const DEST={createFolder:()=>({createFile:b=>{creados++; return arch('desde_zip.m4a',1);}}),getFoldersByName:()=>({hasNext:()=>false})};
+_carpetaDelLibro=()=>({getFoldersByName:()=>({hasNext:()=>false}),createFolder:()=>DEST});
+const vz=mediosLoteVista({url:'https://drive.google.com/file/d/ZIPxxxxxxxxxxxxxxxxxxxxxxx1/view',idioma:E});
+ok(vz.total===1 && vz.grupos[0].estado==='ok' && vz.grupos[0].candidatos[0].p==='P2','zip: lee solo audios (sin __MACOSX) y coincide en español');
+r=mediosLoteTraer({url:'https://drive.google.com/file/d/ZIPxxxxxxxxxxxxxxxxxxxxxxx1/view',idioma:E},[{p:'P2',refs:vz.grupos[0].archivos.map(a=>a.ref)}]);
+ok(r.propuestas===1 && creados===1,'zip: guarda en Drive solo lo elegido');
+let e=''; try{ mediosLoteVista({url:'https://drive.google.com/file/d/'+raiz[0].id+'/view',idioma:W}); }catch(x){ e=x.message; } ok(e.includes('.zip'),'enlace a un archivo que no es zip: lo explica');
+uiMedios('lote');
+for (const [t,x] of Object.entries(DLG)) [...x.matchAll(/<script>([\s\S]*?)<\/script>/g)].forEach((m,i)=>{ try{ new Function(m[1]); }catch(err){ ok(false,'sintaxis '+t+' #'+i+': '+err.message); } });
+console.log(fallos?'FALLOS '+fallos:'TODO OK');

@@ -33,7 +33,7 @@ Estos términos se refieren únicamente al programa. **Los contenidos de cada ca
 
 ## Versiones anteriores
 
-Las versiones publicadas antes del [fecha del cambio] se distribuyeron bajo la licencia MIT y conservan esa licencia para quienes las obtuvieron. A partir de esa fecha, el programa se distribuye bajo la AGPL-3.0 con los términos adicionales de este archivo.
+Las versiones publicadas antes de la versión 1.1 (octubre de 2026) se distribuyeron bajo la licencia MIT y conservan esa licencia para quienes las obtuvieron. A partir de esa fecha, el programa se distribuye bajo la AGPL-3.0 con los términos adicionales de este archivo.
 
 ---
 

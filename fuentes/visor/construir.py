@@ -17,7 +17,7 @@ RAIZ = os.path.abspath(os.path.join(AQUI, '..', '..'))
 
 # Orden de las piezas: así quedan en el archivo final (el orden importa: cada pieza usa las anteriores)
 PIEZAS = ['01_head.html', '02_body.html', '03_core.js', '04_juegos.js', '05_basta_charadas.js', '06_aprender.js',
-          '07_loteria.js', '07a_qr.js', '07b_recursos.js', '07c_propuestas.js', '07d_impresos.js', '07e_letras.js',
+          '07_loteria.js', '07a_qr.js', '07b_recursos.js', '07c_propuestas.js', '07d_impresos.js', '07e_letras.js', '07f_progreso.js',
           '08_hojas_inicio.js']
 
 # Prefijos de claves que el código arma en tiempo de ejecución (p. ej. 'visor.act.' + id): no se pueden revisar literalmente

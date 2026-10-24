@@ -31,7 +31,7 @@ function distancia(a, b) {
 /* ---------- Repaso con tarjetas (cajas de Leitner, se guarda en el dispositivo) ---------- */
 const Repaso = {
     DIAS: [0, 0, 1, 3, 7, 16],
-    clave(L) { return `repaso:${Datos.base}:${L}`; },
+    clave(L) { return `repaso:${Datos.base}:${L}${Perfiles.sufijo()}`; },   // cada perfil local lleva su propio repaso
     abrir() {
         const L = Datos.lengua;
         UI.abrir(`<div class="form"><h2 class="modal-titulo">🃏 ${_ih('visor.act.repaso')}</h2>

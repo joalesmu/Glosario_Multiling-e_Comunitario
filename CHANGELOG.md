@@ -5,6 +5,29 @@ Números de versión: `CONFIG.VERSION` en `Codigo.gs`, `VERSION_VISOR` en el vis
 
 ---
 
+## 1.2 — octubre de 2026
+
+### Al actualizar desde la 1.1
+1. Pega el `Codigo.gs` nuevo en Apps Script, guarda y publica una **nueva versión** de la implementación existente.
+2. Sube a tu alojamiento `index.html`, `manifest.webmanifest`, `sw.js` y la carpeta `iconos/` (los cuatro van juntos: sin ellos el visor no se puede instalar).
+3. Nada más: el visor pasa solo la copia del catálogo guardada al nuevo almacenamiento.
+
+### Visor
+- **Instalable como app** (Android, iPhone y iPad, Windows y Mac): ícono propio (la vírgula de Vírgula, en verde), abre al instante y sin internet con lo último guardado. Avisa cuando hay versión nueva y se actualiza con un toque (nunca durante una actividad). En iPhone, el botón ⬇️ explica cómo agregarlo a la pantalla de inicio.
+- **Copia del catálogo en IndexedDB** en lugar de localStorage: caben catálogos grandes y varios catálogos en el mismo aparato. La copia anterior se migra sola.
+- **📈 Mi progreso**, solo en el aparato: palabras vistas y escuchadas, ⭐ favoritas, palabras aprendidas en el repaso, partidas y aciertos, días de práctica.
+- **Perfiles locales** con apodo y dibujo (nunca el nombre real) para aparatos compartidos; el repaso con tarjetas también va por perfil. El docente revisa el avance en el propio aparato, perfil por perfil.
+- **Compartir solo si la persona quiere:** resumen sin nombres por el menú de compartir del aparato, o una copia del progreso para pasarla a otro aparato. Nada se envía automáticamente.
+- Cada catálogo guarda su progreso por separado.
+- **🔌 Cambiar de catálogo** acepta el enlace de invitación completo (con dirección y clave), pegado o con «📋 Pegar enlace». Útil en la app instalada, sobre todo en iPhone, donde los enlaces suelen abrirse en Safari.
+
+### Hoja del catálogo
+
+### Hoja del catálogo
+- **📥 Traer audios en lote** (🖼️ Imágenes y sonidos): de una carpeta de Drive o de un .zip, cada audio va a la traducción cuyo texto coincide con el nombre del archivo, en la lengua elegida. Aplica los atajos, ignora «(1)», «_2», fechas de grabadora y lo que va después de «__», junta las dos calidades (.m4a/.ogg de consulta y .wav/.flac de archivo) y separa lo que coincide, lo dudoso, lo que ya tiene audio y lo que no coincide. Todo entra en revisión; nada se publica hasta aceptarlo.
+
+---
+
 ## 1.1 — octubre de 2026
 
 Primera versión publicada como modelo para replicar. Desde esta versión el programa se distribuye bajo **AGPL-3.0** con los términos adicionales de [NOTICE.md](NOTICE.md); las versiones anteriores se publicaron bajo MIT.

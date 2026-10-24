@@ -184,6 +184,7 @@ function msg(html) { const m = $('lot-msg'); if (m) m.innerHTML = `<div class="c
     window.addEventListener('online', () => Estado.alVolver());
     window.addEventListener('online', () => Propuestas.enviarCola());
     document.addEventListener('visibilitychange', () => { if (!document.hidden) Propuestas.enviarCola(); });
+    Instalar.iniciar(); Progreso.pintarBoton();
     Datos.iniciar().then(async () => { if (Datos.cargado) { await Offline.iniciar(); UI.refrescar(); Loteria.revisarEnlace(); Actividades.revisarEnlace(); Propuestas.revisarEnlace(); revisarEnlaceOir(); Propuestas.enviarCola(); } });
 })();
 </script>
