@@ -3,7 +3,7 @@
  * ===================================================================
  * Copyright (c) 2025 Alejandro Estrada
  * SPDX-License-Identifier: AGPL-3.0-only
- * @version         1.1
+ * @version         1.1.1
  * -------------------------------------------------------------------
  * Este programa es software libre: puedes redistribuirlo y modificarlo según los
  * términos de la Licencia Pública General Affero de GNU, versión 3, con los
@@ -5518,6 +5518,170 @@ function mediosBanco(carpetaUrl, tipo, desde) {
   return { total: todos.length, desde: ini, archivos, carpeta: carpeta.getName() };
 }
 
+// ── Traer audios en lote: cada archivo va a la traducción cuyo texto coincide con su nombre ──
+// «kiitɨ.m4a» → la traducción «kiitɨ» de la lengua elegida. Todo entra a MEDIOS_PROPUESTOS como «Pendiente»:
+// nada cambia en TRADUCCIONES hasta que alguien lo acepta en ✅ Revisar. Los archivos de una carpeta no se mueven;
+// los de un .zip se guardan (solo los elegidos) en la carpeta de audios de la lengua.
+// Nombres: se ignoran la extensión, «(1)», «_2», fechas de grabadora, «copia» y todo lo que va después de «__»
+// (así «kiitɨ__Rosa.m4a» sirve para indicar quién habla sin estorbar la coincidencia). «_» cuenta como espacio.
+const EXT_AUDIO_ARCHIVO = /\.(wav|flac|aiff?|w64|bwf)$/i;
+const EXT_AUDIO = /\.(wav|flac|aiff?|w64|bwf|mp3|m4a|aac|ogg|oga|opus|webm|3gp|amr|mp4)$/i;
+const LOTE_MAX = 1500, LOTE_ZIP_MAX = 45 * 1024 * 1024;
+
+/** Nombre de archivo → texto que se compara con las traducciones. */
+function _nombreAudio(n) {
+  return _s(n).replace(/^.*[\\/]/, '').replace(/\.[a-z0-9]{2,5}$/i, '').replace(/__.*$/, '')
+    .replace(/\s*\(\d+\)\s*$/, '').replace(/[_\s-]*(copia|copy)(\s*(de|of))?\s*\d*$/i, '')
+    .replace(/[_\s-]+\d{6,8}([_\s-]?\d{4,6})?$/, '').replace(/[_\s-]+\d{1,3}$/, '')
+    .replace(/_+/g, ' ').replace(/\s+/g, ' ').trim().normalize('NFC');
+}
+const _calidadAudio = n => EXT_AUDIO_ARCHIVO.test(_s(n)) ? 'archivo' : 'consulta';
+
+/** Archivos de audio de una carpeta (y sus subcarpetas, dos niveles) o de un .zip. */
+function _fuenteLote(url) {
+  const v = _s(url);
+  const id = _idDrive(v) || (v.match(/folders\/([-\w]{20,})/) || [])[1] || (/^[-\w]{20,}$/.test(v) ? v : '');
+  if (!id) throw new Error(tx('lote.error.enlace'));
+  let carpeta = null; try { carpeta = DriveApp.getFolderById(id); } catch (e) { carpeta = null; }
+  const lista = [];
+  if (carpeta) {
+    const recorrer = (c, nivel, ruta) => {
+      const it = c.getFiles();
+      while (it.hasNext() && lista.length < LOTE_MAX) {
+        const f = it.next();
+        if (f.isTrashed() || !EXT_AUDIO.test(f.getName()) && !/^audio\//.test(_s(f.getMimeType()))) continue;
+        lista.push({ ref: f.getId(), nombre: f.getName(), ruta, kb: Math.round(f.getSize() / 1024) });
+      }
+      if (nivel < 2) { const sub = c.getFolders(); while (sub.hasNext() && lista.length < LOTE_MAX) { const x = sub.next(); recorrer(x, nivel + 1, (ruta ? ruta + '/' : '') + x.getName()); } }
+    };
+    recorrer(carpeta, 0, '');
+    return { tipo: 'carpeta', nombre: carpeta.getName(), lista, carpeta };
+  }
+  let f; try { f = DriveApp.getFileById(id); } catch (e) { throw new Error(tx('lote.error.noEncontrado')); }
+  if (!/\.zip$/i.test(f.getName()) && !/zip/i.test(_s(f.getMimeType()))) throw new Error(tx('lote.error.tipo'));
+  if (f.getSize() > LOTE_ZIP_MAX) throw new Error(tx('lote.error.zipGrande', { mb: Math.round(f.getSize() / 1048576) }));
+  const b = f.getBlob(); b.setContentType('application/zip');
+  const blobs = Utilities.unzip(b);
+  blobs.forEach((x, i) => {
+    const n = _s(x.getName()); if (/(^|\/)(__MACOSX|\.)/.test(n) || !EXT_AUDIO.test(n) || lista.length >= LOTE_MAX) return;
+    lista.push({ ref: 'zip:' + i, nombre: n.replace(/^.*\//, ''), ruta: n.indexOf('/') > -1 ? n.replace(/\/[^/]*$/, '') : '', kb: Math.round(x.getBytes().length / 1024) });
+  });
+  return { tipo: 'zip', nombre: f.getName(), lista, blobs, archivo: f };
+}
+
+/** Índice de las formas escritas de una lengua: exacta y sin acentos → traducciones. */
+function _indiceLote(ss, idIdioma) {
+  const tPal = _tabla(ss, CONFIG.SHEETS.PALABRAS), tTr = _tabla(ss, CONFIG.SHEETS.TRADUCCIONES);
+  const vivas = new Set(tPal.filas.filter(f => _s(_get(tPal, f, 'id_palabra')) && !_retirado(_get(tPal, f, 'estado'))).map(f => _k(_get(tPal, f, 'id_palabra'))));
+  const textos = _textosPorPalabra(tTr), exacta = new Map(), suave = new Map();
+  const idiomas = {}; readSheet(ss, CONFIG.SHEETS.IDIOMAS).forEach(i => { idiomas[_k(i.id_idioma)] = _s(i.nombre_propio || i.nombre_completo); });
+  const pon = (m, k, x) => { if (!k) return; const l = m.get(k) || []; if (!l.some(y => y.p === x.p)) l.push(x); m.set(k, l); };
+  tTr.filas.forEach(f => {
+    if (_k(_get(tTr, f, 'id_idioma')) !== _k(idIdioma) || _retirado(_get(tTr, f, 'estado'))) return;
+    const p = _s(_get(tTr, f, 'id_palabra')); if (!vivas.has(_k(p))) return;
+    const t = textos[_k(p)] || {};
+    const x = { p, texto: _s(_get(tTr, f, 'texto')), audio: !!_s(_get(tTr, f, 'audio')), archivo: !!_s(_get(tTr, f, 'audio_archivo')),
+      otras: Object.keys(t).filter(L => L !== _k(idIdioma)).slice(0, 2).map(L => (idiomas[L] || L) + ': ' + t[L].texto).join(' · ') };
+    _formas(x.texto).forEach(fm => { pon(exacta, _claveForma(fm), x); pon(suave, _plegar(_claveForma(fm)), x); });
+  });
+  return { exacta, suave };
+}
+
+/**
+ * Vista previa (no cambia nada). o = { url, idioma }.
+ * Devuelve grupos por nombre: { nombre, archivos:[{ref,nombre,kb,calidad}], estado: ok|dudoso|conAudio|sin|yaEsta, candidatos:[{p,texto,otras}] }.
+ */
+function mediosLoteVista(o) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  o = o || {};
+  if (!_s(o.idioma)) throw new Error(tx('lote.error.lengua'));
+  const fuente = _fuenteLote(o.url);
+  const reglas = _cargarReglas(ss), ap = _mapaApostrofos(ss)[_k(o.idioma)] || '';
+  const ix = _indiceLote(ss, o.idioma);
+  const ya = new Set(), tM = _tabla(ss, CONFIG.SHEETS.MEDIOS);
+  if (tM) tM.filas.forEach(f => { if (_k(_get(tM, f, 'estado')) !== 'rechazado') { const id = _idDrive(_get(tM, f, 'enlace')); if (id) ya.add(id); } });
+  const grupos = new Map();
+  fuente.lista.forEach(a => {
+    const base = _unificarApostrofos(_normalizar(_nombreAudio(a.nombre), o.idioma, reglas, '', false), ap);
+    const k = _claveForma(base) || _k(a.nombre);
+    const g = grupos.get(k) || { nombre: base || a.nombre, archivos: [] };
+    g.archivos.push({ ref: a.ref, nombre: a.nombre, ruta: a.ruta, kb: a.kb, calidad: _calidadAudio(a.nombre) });
+    grupos.set(k, g);
+  });
+  const lista = [...grupos.entries()].map(([k, g]) => {
+    const variantes = [...new Set([k, k.replace(/-/g, ' '), k.replace(/-/g, '')])];
+    let cand = [], exacto = true;
+    variantes.forEach(v => { (ix.exacta.get(v) || []).forEach(x => { if (!cand.some(y => y.p === x.p)) cand.push(x); }); });
+    if (!cand.length) { exacto = false; variantes.forEach(v => { (ix.suave.get(_plegar(v)) || []).forEach(x => { if (!cand.some(y => y.p === x.p)) cand.push(x); }); }); }
+    let estado;
+    if (fuente.tipo === 'carpeta' && g.archivos.every(a => ya.has(a.ref))) estado = 'yaEsta';
+    else if (!cand.length) estado = 'sin';
+    else if (cand.length > 1 || !exacto) estado = 'dudoso';
+    else if (g.archivos.some(a => a.calidad === 'consulta') ? cand[0].audio : cand[0].archivo) estado = 'conAudio';
+    else estado = 'ok';
+    const avisos = [];
+    if (g.archivos.filter(a => a.calidad === 'consulta').length > 1 || g.archivos.filter(a => a.calidad === 'archivo').length > 1) avisos.push(tx('lote.aviso.varios'));
+    if (g.archivos.some(a => a.calidad === 'consulta' && a.kb * 1024 > MEDIO_LIMITES.audioMax)) avisos.push(tx('lote.aviso.pesado'));
+    if (!g.archivos.some(a => a.calidad === 'consulta')) avisos.push(tx('lote.aviso.soloArchivo'));
+    return { nombre: g.nombre, archivos: g.archivos, estado, avisos, candidatos: cand.slice(0, 6).map(x => ({ p: x.p, texto: x.texto, otras: x.otras, audio: x.audio })) };
+  }).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  const cuenta = {}; lista.forEach(g => { cuenta[g.estado] = (cuenta[g.estado] || 0) + 1; });
+  return { fuente: { tipo: fuente.tipo, nombre: fuente.nombre }, total: fuente.lista.length, limite: fuente.lista.length >= LOTE_MAX, grupos: lista, cuenta };
+}
+
+/**
+ * Trae lo elegido como propuestas «Pendiente». o = { url, idioma, id_voz }. elegidos = [{ p: id_palabra, refs: [ref…] }].
+ * De un .zip, solo los elegidos se guardan en Drive (carpeta de audios de la lengua → «Lote …»).
+ */
+function mediosLoteTraer(o, elegidos) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  o = o || {};
+  if (!_s(o.idioma)) throw new Error(tx('lote.error.lengua'));
+  const pedidos = (elegidos || []).filter(e => _s(e.p) && (e.refs || []).length);
+  if (!pedidos.length) throw new Error(tx('lote.error.nada'));
+  const fuente = _fuenteLote(o.url);
+  const porRef = new Map(fuente.lista.map(a => [a.ref, a]));
+  const tTr = _tabla(ss, CONFIG.SHEETS.TRADUCCIONES);
+  const conTraduccion = new Set(tTr.filas.filter(f => _k(_get(tTr, f, 'id_idioma')) === _k(o.idioma)).map(f => _k(_get(tTr, f, 'id_palabra'))));
+  const lock = _lock();
+  try {
+    const tM = _hojaMedios(ss), ya = new Set();
+    tM.filas.forEach(f => { if (_k(_get(tM, f, 'estado')) !== 'rechazado') { const id = _idDrive(_get(tM, f, 'enlace')); if (id) ya.add(id); } });
+    let destino = null;
+    const carpetaZip = () => {
+      if (destino) return destino;
+      const tI = _tabla(ss, CONFIG.SHEETS.IDIOMAS), fi = tI.filas.find(f => _k(_get(tI, f, 'id_idioma')) === _k(o.idioma));
+      const base = (fi && _carpetaValida(_get(tI, fi, 'carpeta_audios'))) || _carpetaValida(getAppConfig(ss).audios) || _subcarpeta(_carpetaDelLibro(ss), 'AUDIOS');
+      destino = base.createFolder(tx('lote.carpeta', { nombre: fuente.nombre.replace(/\.zip$/i, ''), fecha: _ahora() }));
+      return destino;
+    };
+    const filas = [], r = { propuestas: 0, omitidos: 0, avisos: [] };
+    const origen = tx('lote.origen', { nombre: fuente.nombre });
+    pedidos.forEach(e => {
+      if (!conTraduccion.has(_k(e.p))) { r.omitidos += e.refs.length; return; }
+      e.refs.forEach(ref => {
+        const a = porRef.get(ref);
+        if (!a) { r.omitidos++; return; }
+        let calidad = _calidadAudio(a.nombre);
+        if (calidad === 'consulta' && a.kb * 1024 > MEDIO_LIMITES.audioMax) { calidad = 'archivo'; r.avisos.push(tx('lote.aviso.comoArchivo', { nombre: a.nombre })); }
+        let idArchivo = ref;
+        if (fuente.tipo === 'zip') {
+          const b = fuente.blobs[Number(ref.slice(4))];
+          idArchivo = carpetaZip().createFile(b.setName(a.nombre)).getId();
+        } else if (ya.has(ref)) { r.omitidos++; return; }
+        ya.add(idArchivo);
+        filas.push({ id_medio: Utilities.getUuid(), tipo: 'audio', id_palabra: _s(e.p), id_idioma: _s(o.idioma), enlace: _enlaceNormal(idArchivo), calidad,
+          id_voz: _s(o.id_voz), origen, propuesto_por: _correoActual(), fecha: _ahora(), estado: 'Pendiente', nota: tx('lote.nota', { nombre: a.nombre }).slice(0, 300) });
+        r.propuestas++;
+      });
+    });
+    if (filas.length) _agregar(tM, filas);
+    try { _historial(ss, CONFIG.SHEETS.MEDIOS, origen, {}, { propuestas: r.propuestas }); } catch (e) {}
+    r.avisos = [...new Set(r.avisos)].slice(0, 20);
+    return r;
+  } finally { lock.releaseLock(); }
+}
+
 // ── Revisión de propuestas ──
 
 function mediosPendientes() {
@@ -5650,7 +5814,7 @@ function ilustracionTraer(id, directo) {
 function uiMediosIlustrar() { uiMedios('ilustrar'); }
 
 function uiMedios(tabInicial) {
-  const tab = ['palabra', 'banco', 'revisar', 'ilustrar', 'rec'].includes(tabInicial) ? tabInicial : 'palabra';
+  const tab = ['palabra', 'banco', 'lote', 'revisar', 'ilustrar', 'rec'].includes(tabInicial) ? tabInicial : 'palabra';
   const html = `${_CSS_FICHAS}${_tScript()}
   <style>
     .tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}.tabs button{background:#e2e8f0}.tabs button.on{background:#475569;color:#fff}
@@ -5669,6 +5833,7 @@ function uiMedios(tabInicial) {
     <div class="tabs" role="tablist">
       <button data-tab="palabra">${txh('medios.tab.palabra')}</button>
       <button data-tab="banco">${txh('medios.tab.banco')}</button>
+      <button data-tab="lote">${txh('medios.tab.lote')}</button>
       <button data-tab="revisar" id="tRevisar">${txh('medios.tab.revisar')}</button>
       <button data-tab="ilustrar">${txh('medios.tab.ilustrar')}</button>
       <button data-tab="rec">${txh('medios.tab.rec')}</button>
@@ -5695,7 +5860,7 @@ function uiMedios(tabInicial) {
     function pintar() {
       document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === TAB));
       if (!D) { $('vista').innerHTML = '<p>' + th('comun.cargando') + '</p>'; return; }
-      ({ palabra: vPalabra, banco: vBanco, revisar: vRevisar, ilustrar: vIlustrar, rec: vRec })[TAB]();
+      ({ palabra: vPalabra, banco: vBanco, lote: vLote, revisar: vRevisar, ilustrar: vIlustrar, rec: vRec })[TAB]();
     }
     const recCorta = () => '<details class="sec"><summary><b>' + th(modo === 'audio' ? 'medios.rec.audio.titulo' : 'medios.rec.imagen.titulo') + '</b></summary><ul class="rec">' +
       (modo === 'audio' ? [1,2,3,4,5] : [1,2,3,4,5]).map(i => '<li>' + th('medios.rec.' + modo + '.' + i) + '</li>').join('') + '</ul></details>';
@@ -5840,6 +6005,79 @@ function uiMedios(tabInicial) {
     }
     // ── Por revisar
     let PEND = null;
+    // ── Traer audios en lote (por nombre de archivo)
+    let LOTE = null, loteO = { url: '', idioma: '', id_voz: '' };
+    const ESTADOS_LOTE = ['ok', 'dudoso', 'conAudio', 'sin', 'yaEsta'];
+    function vLote() {
+      if (!loteO.idioma) loteO.idioma = L;
+      const voces = D.voces.filter(x => !x.L || x.L === loteO.idioma);
+      let h = '<p>' + th('lote.d') + '</p><details class="sec"><summary><b>' + th('lote.nombres.t') + '</b></summary><ul class="rec">' + [1, 2, 3, 4].map(i => '<li>' + th('lote.nombres.' + i) + '</li>').join('') + '</ul></details>' +
+        '<label for="lUrl">' + th('lote.enlace') + '</label><input type="text" id="lUrl" value="' + esc(loteO.url) + '" placeholder="https://drive.google.com/…">' +
+        '<div class="fila" style="margin-top:6px"><label for="lL">' + th('medios.lengua') + '</label><select id="lL">' + D.idiomas.map(i => '<option value="' + esc(i.id) + '"' + (i.id === loteO.idioma ? ' selected' : '') + '>' + esc(i.nombre) + '</option>').join('') + '</select>' +
+        '<label for="lV">' + th('lote.voz') + '</label><select id="lV"><option value="">' + th('medios.vozSin') + '</option>' + voces.map(x => '<option value="' + esc(x.id) + '"' + (x.id === loteO.id_voz ? ' selected' : '') + '>' + esc(x.nombre) + '</option>').join('') + '</select>' +
+        '<button class="prim" id="lVer">🔍 ' + th('lote.revisar') + '</button></div>';
+      if (LOTE) {
+        const c = LOTE.cuenta;
+        h += '<p><b>' + th('lote.resumen', { n: LOTE.total, fuente: LOTE.fuente.nombre }) + '</b>' + (LOTE.limite ? ' <span class="chip no">' + th('lote.limite') + '</span>' : '') + '<br>' +
+          ESTADOS_LOTE.filter(e => c[e]).map(e => '<span class="chip ' + ({ ok: 'si', dudoso: 'pe', conAudio: 'pe', sin: 'no', yaEsta: '' })[e] + '">' + th('lote.e.' + e, { n: c[e] }) + '</span>').join(' ') + '</p>';
+        ESTADOS_LOTE.forEach(e => {
+          const gs = LOTE.grupos.map((g, i) => ({ g, i })).filter(x => x.g.estado === e);
+          if (!gs.length) return;
+          const abierto = e === 'ok' || e === 'dudoso';
+          h += '<details class="sec"' + (abierto ? ' open' : '') + '><summary><b>' + th('lote.e.' + e, { n: gs.length }) + '</b> <small>' + th('lote.e.' + e + '.d') + '</small></summary>';
+          if (e === 'ok' || e === 'conAudio') h += '<button data-ltodo="' + e + '">☑ ' + th('lote.marcarTodo') + '</button> <button data-lnada="' + e + '">☐ ' + th('lote.desmarcar') + '</button>';
+          h += gs.map(({ g, i }) => {
+            const arch = g.archivos.map((a, j) => '<span class="chip">' + (a.calidad === 'archivo' ? '🗄️ ' : '🔊 ') + esc(a.nombre) + ' · ' + a.kb + ' KB</span>' +
+              (LOTE.fuente.tipo === 'carpeta' && a.calidad === 'consulta' ? ' <button data-loir="' + i + '|' + j + '">▶</button>' : '')).join(' ');
+            let pal = '';
+            if (e === 'ok' || e === 'conAudio') pal = '→ <b>' + esc(g.candidatos[0].texto) + '</b> <small>' + esc(g.candidatos[0].otras) + '</small>';
+            if (e === 'dudoso') pal = '<select data-lsel="' + i + '"><option value="">' + th('lote.elige') + '</option>' + g.candidatos.map(x => '<option value="' + esc(x.p) + '">' + esc(x.texto + (x.otras ? ' — ' + x.otras : '') + (x.audio ? ' 🔊' : '')) + '</option>').join('') + '</select>';
+            const marcable = e === 'ok' || e === 'conAudio' || e === 'dudoso';
+            return '<div class="pal">' + (marcable ? '<label style="font-weight:normal"><input type="checkbox" data-lchk="' + i + '"' + (e === 'ok' ? ' checked' : '') + (e === 'dudoso' ? ' disabled' : '') + '> ' : '') +
+              '<span class="t">' + esc(g.nombre) + '</span>' + (marcable ? '</label>' : '') + ' ' + pal + '<div>' + arch + '</div>' +
+              g.avisos.map(x => '<div class="chip pe">' + esc(x) + '</div>').join('') + '<div id="lprev' + i + '"></div></div>';
+          }).join('') + '</details>';
+        });
+        h += '<div style="margin-top:8px"><button class="prim" id="lTraer">📥 ' + th('lote.traer') + ' (<span id="lN">0</span>)</button> <small>' + th('lote.traer.d') + '</small></div>';
+      }
+      $('vista').innerHTML = h;
+      $('lL').onchange = () => { loteO.idioma = $('lL').value; loteO.id_voz = ''; LOTE = null; loteO.url = $('lUrl').value.trim(); vLote(); };
+      $('lV').onchange = () => { loteO.id_voz = $('lV').value; };
+      $('lVer').onclick = () => {
+        loteO.url = $('lUrl').value.trim(); loteO.id_voz = $('lV').value;
+        if (!loteO.url) { err({ message: tt('lote.error.enlace') }); return; }
+        $('msg').textContent = tt('lote.leyendo');
+        google.script.run.withFailureHandler(err).withSuccessHandler(r => { LOTE = r; $('msg').innerHTML = ''; vLote(); }).mediosLoteVista(loteO);
+      };
+      if (!LOTE) return;
+      const contar = () => { $('lN').textContent = document.querySelectorAll('[data-lchk]:checked').length; };
+      document.querySelectorAll('[data-lsel]').forEach(sel => sel.onchange = () => { const ch = document.querySelector('[data-lchk="' + sel.dataset.lsel + '"]'); ch.disabled = !sel.value; ch.checked = !!sel.value; contar(); });
+      document.querySelectorAll('[data-lchk]').forEach(ch => ch.onchange = contar);
+      document.querySelectorAll('[data-ltodo],[data-lnada]').forEach(b => b.onclick = () => {
+        const e = b.dataset.ltodo || b.dataset.lnada, si = !!b.dataset.ltodo;
+        LOTE.grupos.forEach((g, i) => { if (g.estado === e) { const ch = document.querySelector('[data-lchk="' + i + '"]'); if (ch && !ch.disabled) ch.checked = si; } });
+        contar();
+      });
+      document.querySelectorAll('[data-loir]').forEach(b => b.onclick = () => { const [i, j] = b.dataset.loir.split('|'); previa(LOTE.grupos[+i].archivos[+j].ref, 'audio', 'lprev' + i); });
+      contar();
+      $('lTraer').onclick = () => {
+        const elegidos = [];
+        document.querySelectorAll('[data-lchk]:checked').forEach(ch => {
+          const i = +ch.dataset.lchk, g = LOTE.grupos[i], sel = document.querySelector('[data-lsel="' + i + '"]');
+          const p = sel ? sel.value : g.candidatos[0].p;
+          if (p) elegidos.push({ p, refs: g.archivos.map(a => a.ref) });
+        });
+        if (!elegidos.length) { err({ message: tt('lote.error.nada') }); return; }
+        $('lTraer').disabled = true; $('msg').textContent = tt('lote.trayendo', { n: elegidos.length });
+        google.script.run.withFailureHandler(e => { $('lTraer').disabled = false; err(e); }).withSuccessHandler(r => {
+          LOTE = null; vLote();
+          ok(th('lote.listo', { n: r.propuestas, omitidos: r.omitidos }) + (r.avisos.length ? '<br>⚠️ ' + r.avisos.map(esc).join('<br>⚠️ ') : '') +
+            '<br><button data-tab-ir="revisar">✅ ' + th('lote.irRevisar') + '</button>');
+          document.querySelector('[data-tab-ir]').onclick = () => { TAB = 'revisar'; $('msg').innerHTML = ''; cargar(); };
+          cargar(() => {});
+        }).mediosLoteTraer(loteO, elegidos);
+      };
+    }
     function vRevisar() {
       $('vista').innerHTML = '<p>' + th('comun.cargando') + '</p>';
       google.script.run.withFailureHandler(err).withSuccessHandler(r => {
@@ -10124,6 +10362,50 @@ const T_ES = {
   "medios.titulo": "🖼️ Imágenes y sonidos",
   "medios.intro": "Elige las palabras por lo que dicen, no por su código. Una *imagen* vale para la palabra en todas las lenguas; un *sonido* es de la palabra en una lengua.",
   "medios.tab.palabra": "🔎 Por palabra",
+  "medios.tab.lote": "📥 Traer audios en lote",
+  "lote.d": "Trae de una vez los audios de una carpeta de Drive (o de un archivo .zip). Cada archivo va a la traducción cuyo texto coincide con su nombre, por ejemplo «kiitɨ.m4a». Todo queda *en revisión*: nada se publica hasta que lo aceptes en ✅ Revisar.",
+  "lote.nombres.t": "¿Cómo nombrar los archivos?",
+  "lote.nombres.1": "El nombre es la palabra escrita, en la lengua elegida: kiitɨ.m4a. No importan las mayúsculas ni el tipo de apóstrofo, y se aplican los atajos de escritura (naw+.m4a = nawɨ).",
+  "lote.nombres.2": "Se ignoran «(1)», «_2», «copia», las fechas que ponen las grabadoras y todo lo que va después de dos guiones bajos: kiitɨ__Rosa.m4a.",
+  "lote.nombres.3": "Dos calidades con el mismo nombre se juntan solas: el .m4a, .mp3, .ogg u .opus queda como audio de consulta y el .wav o .flac como audio de archivo.",
+  "lote.nombres.4": "Varias palabras: usa un espacio o un guion bajo (el_rancho.m4a = «el rancho»).",
+  "lote.enlace": "Enlace de la carpeta de Drive o del archivo .zip",
+  "lote.voz": "Quién habla (todo el lote)",
+  "lote.revisar": "Revisar los archivos",
+  "lote.leyendo": "⏳ Leyendo los archivos y buscando coincidencias…",
+  "lote.resumen": "{n} archivo(s) en «{fuente}»",
+  "lote.limite": "Solo se leyeron los primeros 1500: divide la carpeta",
+  "lote.e.ok": "✅ Coinciden: {n}",
+  "lote.e.ok.d": "Listos para traer.",
+  "lote.e.dudoso": "⚠️ Por confirmar: {n}",
+  "lote.e.dudoso.d": "El texto está en varias palabras, o solo coincide sin acentos. Elige la palabra correcta.",
+  "lote.e.conAudio": "🔊 Ya tienen audio: {n}",
+  "lote.e.conAudio.d": "No se marcan solos. Si los traes y los aceptas en ✅ Revisar, reemplazan el audio actual.",
+  "lote.e.sin": "❌ Sin coincidencia: {n}",
+  "lote.e.sin.d": "Ningún texto de esta lengua se escribe así. Revisa el nombre del archivo o agrega la palabra primero.",
+  "lote.e.yaEsta": "⏭ Ya traídos antes: {n}",
+  "lote.e.yaEsta.d": "Estos archivos ya están en revisión o ya se aceptaron.",
+  "lote.marcarTodo": "Marcar todos",
+  "lote.desmarcar": "Desmarcar",
+  "lote.elige": "— Elige la palabra —",
+  "lote.traer": "Traer a revisión",
+  "lote.traer.d": "Quedan como propuestas: se escuchan y se aceptan en ✅ Revisar.",
+  "lote.trayendo": "⏳ Trayendo {n} audio(s)…",
+  "lote.listo": "✅ {n} audio(s) en revisión. Omitidos: {omitidos}.",
+  "lote.irRevisar": "Ir a revisarlos",
+  "lote.aviso.varios": "Hay más de un archivo de la misma calidad con este nombre: se traen todos y en Revisar eliges cuál aceptar.",
+  "lote.aviso.pesado": "Pesa más de 5 MB: se traerá como audio de archivo. Para consulta, conviene una versión ligera (.m4a u .ogg).",
+  "lote.aviso.soloArchivo": "Solo hay versión de archivo: el visor no lo podrá reproducir hasta que haya una versión ligera.",
+  "lote.aviso.comoArchivo": "«{nombre}» pesa más de 5 MB: se trajo como audio de archivo.",
+  "lote.carpeta": "Lote {nombre} · {fecha}",
+  "lote.origen": "Lote: {nombre}",
+  "lote.nota": "Archivo: {nombre}",
+  "lote.error.enlace": "Pega el enlace de una carpeta de Drive o de un archivo .zip.",
+  "lote.error.noEncontrado": "No encuentro esa carpeta o archivo. Revisa el enlace y que tengas acceso.",
+  "lote.error.tipo": "Ese enlace es de un archivo que no es .zip. Usa el enlace de la carpeta donde están los audios.",
+  "lote.error.zipGrande": "El .zip pesa {mb} MB y el máximo es 45 MB. Descomprímelo en una carpeta de Drive y usa el enlace de la carpeta.",
+  "lote.error.lengua": "Elige la lengua de los audios.",
+  "lote.error.nada": "No hay audios elegidos.",
   "medios.tab.banco": "🗂️ Banco sin asignar",
   "medios.tab.revisar": "✅ Por revisar",
   "medios.tab.revisarN": "✅ Por revisar ({n})",
