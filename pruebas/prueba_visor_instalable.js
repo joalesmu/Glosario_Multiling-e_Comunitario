@@ -111,7 +111,15 @@ async function contexto(b, extra = {}) {
   ok(await q.inputValue('#cx-url') === 'https://script.google.com/macros/s/BBB/exec' && await q.inputValue('#cx-tok') === 'clave123', 'enlace de invitación pegado: dirección y clave');
   await q.click('#cx-ok'); await q.waitForTimeout(1500);
   ok(await q.evaluate(() => Datos.base === 'https://script.google.com/macros/s/BBB/exec' && Datos.token === 'clave123' && Catalogos.lista().length === 2), 'cambia al catálogo del enlace y recuerda ambos');
-  // Dos catálogos en el mismo aparato no se mezclan
+  // Lista de catálogos recientes: nombre, lenguas y búsqueda
+  await q.evaluate(() => { const l = Catalogos.lista(); l.forEach(c => { delete c.titulo; delete c.lenguas; }); for (let i = 0; i < 5; i++) l.push({ url: 'https://script.google.com/macros/s/Z' + i + '/exec', token: '' }); LS.set('glosario_catalogos', l); UI.pantallaConexion(); });
+  await q.waitForTimeout(800);
+  const filaA = await q.textContent('[data-rec="0"]');
+  ok(filaA.includes('Acervo Wixárika') && filaA.includes('Wixárika'), 'recientes: nombre y lenguas tomados de la copia guardada: ' + filaA.trim().slice(0, 60));
+  ok((await q.textContent('#vista')).includes('sin nombre todavía'), 'los que nunca se abrieron dicen «sin nombre todavía»');
+  await q.fill('#cx-buscar', 'wixa'); await q.waitForTimeout(200);
+  ok(await q.locator('[data-fila-rec]:visible').count() === 1, 'buscar entre muchos catálogos por nombre o lengua');
+    // Dos catálogos en el mismo aparato no se mezclan
   ok(await p.evaluate(() => Progreso.clave('p0', 'https://script.google.com/macros/s/BBB/exec') !== Progreso.clave('p0')), 'progreso separado por catálogo');
   await b.close();
   console.log(F ? `FALLAS: ${F}` : 'TODO OK'); process.exitCode = F ? 1 : 0;

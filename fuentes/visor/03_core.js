@@ -279,7 +279,16 @@ const Catalogos = {
         if (!url) return;
         const l = this.lista().filter(x => x.url !== url), previo = this.lista().find(x => x.url === url) || {};
         l.unshift({ url, token: token || '', titulo: titulo || previo.titulo || '' });
-        LS.set('glosario_catalogos', l.slice(0, 12)); LS.del('glosario_token');
+        LS.set('glosario_catalogos', l.slice(0, 40)); LS.del('glosario_token');
+    },
+    /** Guarda nombre, lenguas y último uso de un catálogo ya recordado (sin cambiar su lugar en la lista). */
+    anotar(url, datos) { const l = this.lista(), c = l.find(x => x.url === url); if (!c) return; Object.assign(c, datos); LS.set('glosario_catalogos', l); },
+    /** Lee el nombre y las lenguas de la copia guardada, para los catálogos que se agregaron sin nombre. */
+    async completar(url) {
+        const d = await Copia.leer(url).catch(() => null), cfg = d && d.data && d.data.config;
+        if (!cfg || !cfg.titulo) return null;
+        const lenguas = ((d.data.idiomas || []).map(i => i.nombre_propio || i.nombre_completo || i.nombre || i.id_idioma)).slice(0, 4).join(', ');
+        this.anotar(url, { titulo: cfg.titulo, lenguas }); return this.lista().find(x => x.url === url);
     },
     olvidar(url) { LS.set('glosario_catalogos', this.lista().filter(x => x.url !== url)); LS.del('cat:' + url); Copia.borrar(url); if (LS.get('glosario_url', '') === url) LS.del('glosario_url'); }
 };
@@ -535,6 +544,7 @@ const Datos = {
         this._conteos.clear(); Texto.limpiarCaches();
         this.cargado = true;
         this.cabecera();
+        Catalogos.anotar(this.base, { titulo: this.cfg.titulo || '', lenguas: this.langs.map(l => l.nombre).slice(0, 4).join(', '), t: Date.now() });
     },
     /** Título, subtítulo y selector de lengua (se vuelve a pintar al cambiar el idioma de los menús). */
     cabecera() {
@@ -755,6 +765,12 @@ const UI = {
         SoundFX.win();
     },
     zoom(src) { $('lightbox-img').src = src; $('lightbox').style.display = 'flex'; },
+    /** Cómo se ve un catálogo en la lista de recientes: nombre, lenguas y última vez que se abrió. */
+    etiquetaCatalogo(c) {
+        const id = c.url.replace(/^https:\/\/script\.google(usercontent)?\.com\/macros\/s\//, '').slice(0, 10);
+        const cuando = c.t ? new Date(c.t).toLocaleDateString(document.documentElement.lang || undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+        return `<b style="display:block">${esc(c.titulo || _i('visor.cx.sinNombre'))}</b><span class="nota" style="display:block">${[c.lenguas, cuando ? _i('visor.cx.ultimaVez', { fecha: cuando }) : '', c.titulo ? '' : id + '…'].filter(Boolean).map(esc).join(' · ')}${Catalogos.clave(c.url) ? ' · 🔑' : ''}</span>`;
+    },
     /** 🔌 Abrir otro catálogo, cambiar la clave o volver a uno que ya se abrió. pideClave = el catálogo actual rechazó la clave. */
     pantallaConexion(error = '', pideClave = false) {
         if (Juego.activo) Juego.activo.detener?.();
@@ -774,7 +790,7 @@ const UI = {
             <button class="btn btn-primary btn-block" style="margin-top:10px" id="cx-ok">${_ih('visor.cx.conectar')}</button>
             ${Datos.cargado ? `<button class="btn btn-secondary btn-block" style="margin-top:6px" id="cx-volver">← ${_ih('visor.cx.cancelar')}</button>` : ''}
             ${pred ? `<button class="btn btn-secondary btn-block" style="margin-top:6px" id="cx-pred">🏠 ${_ih('visor.cx.predeterminado')}</button>` : ''}
-            ${rec.length ? `<h3>${_ih('visor.cx.recientes')}</h3>${rec.map((c, i) => `<div class="fila" style="margin:4px 0"><button class="btn btn-secondary" style="flex:1;text-align:left" data-rec="${i}">${esc(c.titulo || c.url.replace(/^https:\/\/script\.google\.com\/macros\/s\//, '').slice(0, 24) + '…')}</button><button class="btn btn-secondary" data-olvidar="${i}" title="${esc(_i('visor.cx.olvidar'))}" aria-label="${esc(_i('visor.cx.olvidar'))}">✕</button></div>`).join('')}` : ''}
+            ${rec.length ? `<h3>${_ih('visor.cx.recientes')} (${rec.length})</h3>${rec.length > 5 ? `<input id="cx-buscar" class="input-box" type="search" placeholder="${esc(_i('visor.cx.buscar'))}" aria-label="${esc(_i('visor.cx.buscar'))}" style="margin-bottom:6px">` : ''}${rec.map((c, i) => `<div class="fila" style="margin:4px 0" data-fila-rec="${i}"><button class="btn btn-secondary cx-rec" style="flex:1;text-align:left" data-rec="${i}">${UI.etiquetaCatalogo(c)}</button><button class="btn btn-secondary" data-olvidar="${i}" title="${esc(_i('visor.cx.olvidar'))}" aria-label="${esc(_i('visor.cx.olvidar'))}">✕</button></div>`).join('')}` : ''}
         </div>`;
         const ir = (url, tok) => { url = Catalogos.limpiar(url); if (!url) return; Catalogos.recordar(url, tok); LS.set('glosario_url', url); location.href = location.pathname; };
         // Si se pega un enlace de invitación, la dirección y la clave se toman de ahí
@@ -789,6 +805,10 @@ const UI = {
         $('cx-volver')?.addEventListener('click', () => UI.refrescar());
         $('cx-pred')?.addEventListener('click', () => { LS.del('glosario_url'); location.href = location.pathname; });
         $('vista').querySelectorAll('[data-rec]').forEach(b => b.onclick = () => { const c = rec[+b.dataset.rec]; ir(c.url, Catalogos.clave(c.url)); });
+        // Los que no tienen nombre lo toman de su copia guardada
+        rec.forEach((c, i) => { if (!c.titulo) Catalogos.completar(c.url).then(n => { const b = n && $('vista').querySelector(`[data-rec="${i}"]`); if (b) { rec[i] = n; b.innerHTML = UI.etiquetaCatalogo(n); } }); });
+        $('cx-buscar')?.addEventListener('input', e => { const q = Texto.pliegue ? Texto.pliegue(e.target.value) : e.target.value.toLowerCase();
+            $('vista').querySelectorAll('[data-fila-rec]').forEach(f => { const c = rec[+f.dataset.filaRec], t = [c.titulo, c.lenguas, c.url].join(' '); f.style.display = !q || (Texto.pliegue ? Texto.pliegue(t) : t.toLowerCase()).includes(q) ? '' : 'none'; }); });
         $('vista').querySelectorAll('[data-olvidar]').forEach(b => b.onclick = () => { Catalogos.olvidar(rec[+b.dataset.olvidar].url); UI.pantallaConexion(error, pideClave); });
         if (pideClave) setTimeout(() => $('cx-tok').focus(), 50);
     },
