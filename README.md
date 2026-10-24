@@ -4,7 +4,7 @@
 
 Las palabras, audios e imágenes se capturan y revisan en Google Sheets (y, si se quiere, en AppSheet), y se muestran en un **visor web** de un solo archivo. El visor funciona en el teléfono, sin instalar nada y también sin internet, e incluye búsqueda, juegos, actividades para aprender y materiales para imprimir.
 
-> Visor diseñado y desarrollado por **Alejandro Estrada** · © 2025 · Código abierto (AGPL-3.0)
+> Visor diseñado y desarrollado por **Alejandro Estrada** · © 2025 · Código abierto (AGPL-3.0) · Versión **1.1** ([cambios](CHANGELOG.md))
 
 ---
 
@@ -17,6 +17,7 @@ Las palabras, audios e imágenes se capturan y revisan en Google Sheets (y, si s
 - [Actualizar el programa](#actualizar-el-programa)
 - [Privacidad, consentimiento y soberanía](#privacidad-consentimiento-y-soberanía)
 - [Problemas frecuentes](#problemas-frecuentes)
+- [Contenido del repositorio](#contenido-del-repositorio)
 - [Participar](#participar)
 - [Licencia](#licencia)
 
@@ -55,6 +56,8 @@ El visor solo lee lo que la hoja publica: una copia preparada de lo que está **
 | TRADUCCIONES | Cómo se dice cada palabra en cada lengua: texto, audio, sílabas, variante, fuente y descripción |
 | RELACIONES · TIPOS_RELACION | Vínculos entre palabras (parte de, sinónimo, variante…) y su vocabulario |
 | FUENTES · ACTORES · AUTORIZACIONES · COMUNIDADES · VOCES | De dónde viene cada dato, quién lo aporta, qué permisos tiene y quién presta su voz |
+| IMAGENES | Galería: imágenes además de la principal de cada palabra |
+| PROPUESTAS | Lo que llega desde el visor, en espera de revisión |
 | EQUIPO | Quién administra y quién captura |
 | AVISOS | Avisos que aparecen arriba del visor |
 | HISTORIAL | Registro de cambios |
@@ -63,8 +66,6 @@ El visor solo lee lo que la hoja publica: una copia preparada de lo que está **
 ---
 
 ## Qué ofrece
-
-✅ = disponible · 🛠️ = en desarrollo
 
 ### En la hoja del catálogo (menú **💠 CATÁLOGO**)
 
@@ -78,55 +79,49 @@ El visor solo lee lo que la hoja publica: una copia preparada de lo que está **
 - ✅ **Mantenimiento:** palabras que se escriben igual, copias de trabajo, reparar la estructura, copia de seguridad, limpiar y recuperar.
 - ✅ **Exportar a grafo:** N-Triples (OntoLex-Lemon y SKOS), CSV para Neo4j y Apache AGE, y GraphML.
 - ✅ **Menús en varios idiomas**, con traducciones que se pueden instalar.
-- 🛠️ **Descripciones en la lengua:** una descripción de cada palabra, escrita en su propia lengua por la comunidad.
-- 🛠️ **📥 Propuestas:** revisar lo que proponen docentes y hablantes desde el visor, con sus créditos.
-- 🛠️ **Galerías:** varias imágenes por palabra, con una principal y un límite por palabra que decide el equipo.
+- ✅ **Descripciones en la lengua:** una descripción de cada palabra, escrita en su propia lengua por la comunidad.
+- ✅ **📥 Propuestas:** revisar lo que proponen docentes y hablantes desde el visor, con sus créditos.
+- ✅ **Galerías:** varias imágenes por palabra, con una principal y un límite por palabra que decide el equipo.
 
 ### En el visor
 
 - ✅ **Explorar:** búsqueda en todas las lenguas, fichas con audio, sílabas, fuente, crédito de la imagen y palabras relacionadas.
 - ✅ **Aprender:** repaso, escucha, ¿en qué lengua?, arma la palabra y dictado.
 - ✅ **Jugar:** lotería (también en línea), memorama, basta, charadas, ahorcado y sopa de letras con palabras cruzadas y tres niveles.
-- ✅ **Imprimir:** lotería, hojas de trabajo, etiquetas y tarjetas.
+- ✅ **Imprimir:** lotería, hojas de trabajo, etiquetas, tarjetas y los recursos para docentes de abajo.
 - ✅ Funciona **sin conexión**, con modo oscuro, alto contraste e interfaz en varios idiomas.
 - ✅ **Avisos** y **pantalla de mantenimiento** que configura el equipo.
-- 🛠️ **Recursos para docentes:**
+- ✅ **Recursos para docentes:**
   - hoja del estudiante y hoja del docente con respuestas, varias versiones, y un código para regenerar cada hoja;
   - pistas configurables: imagen, otra lengua, descripción del catálogo, pista personalizada o espacio en blanco;
   - crucigrama, ordena las letras, basta en papel, memorama recortable, «Pregunta en casa», niveles para grupos multigrado;
   - letras que ya conocen, sílabas, trazo, «Escucha y señala», glosario y lista de cotejo.
-- 🛠️ **📂 Mis actividades:** guardadas en el dispositivo, con respaldo en archivo y sin cuentas.
-- 🛠️ **Proponer** palabras, descripciones, correcciones e imágenes, con crédito y siempre revisado por el equipo; el correo como alternativa.
-- 🛠️ **🤝 Dónde ayudar:** palabras que todavía necesitan imagen o descripción.
+- ✅ **📂 Mis actividades:** guardadas en el dispositivo, con respaldo en archivo y sin cuentas.
+- ✅ **Proponer** palabras, descripciones, correcciones e imágenes, con crédito y siempre revisado por el equipo; el correo como alternativa.
+- ✅ **🤝 Dónde ayudar:** palabras que todavía necesitan imagen o descripción.
 
 ---
 
 ## Replicar el catálogo para tu comunidad
 
-Necesitas una cuenta de Google y, para publicar el visor, una cuenta de GitHub (o cualquier alojamiento web).
+Cada comunidad tiene su propio catálogo, en su propia cuenta de Google, con su propio enlace para el visor. No hace falta cuenta de GitHub: el mismo visor sirve para todos los catálogos.
 
-### 1. La hoja del catálogo
-1. Crea una hoja de cálculo nueva en Google Sheets, o haz una copia de una plantilla.
-2. Abre **Extensiones → Apps Script**, borra lo que haya, pega el contenido de `Codigo.gs` y guarda.
-3. Vuelve a la hoja y recárgala. Aparecerá el menú **💠 CATÁLOGO**.
-4. Elige **🚀 Primeros pasos** y sigue el asistente: nombre del catálogo, lenguas y categorías. La primera vez, Google pedirá autorizar el programa.
+Hay tres caminos, explicados paso a paso en **[docs/REPLICAR.md](docs/REPLICAR.md)**:
 
-### 2. La dirección del catálogo (una sola vez)
-1. En Apps Script: **Implementar → Nueva implementación → Aplicación web**.
-2. Elige **Ejecutar como: Yo** y **Quién tiene acceso: Cualquier persona**, e implementa.
-3. Copia la dirección que termina en `/exec`.
-4. En la hoja: **💠 CATÁLOGO → 🤝 Colaborar → 🔗 Visor: conexión y mantenimiento**, pégala, guarda y pulsa **Probar**.
+- **A. Copiar la app de AppSheet** de la plantilla (recibes la app y tu hoja ya conectadas).
+- **B. Copiar la hoja plantilla** (Archivo → Hacer una copia).
+- **C. Empezar en una hoja en blanco** y pegar `Codigo.gs` en Extensiones → Apps Script.
 
-> La dirección es pública por diseño: solo entrega lo que está publicado. Si quieres limitar quién ve el visor, crea una **clave** en la misma ventana.
+En los tres, después:
+1. **💠 CATÁLOGO → 🚀 Primeros pasos.** Si tu hoja vino de una copia, el programa le da identidad propia (código y clave nuevos, tú como administrador) y nunca toca el catálogo original.
+2. **La dirección del catálogo**, una sola vez: Apps Script → **Implementar → Nueva implementación → Aplicación web**, «Ejecutar como: Yo», «Quién tiene acceso: Cualquier persona». Pega la dirección `/exec` en **🔗 Visor: conexión y mantenimiento** y comparte el enlace del visor que te da esa ventana.
+3. **Tu equipo** en 👥 Equipo y, si usas AppSheet, compártela desde *Share*.
 
-### 3. El visor
-1. Sube `index.html` a un repositorio de GitHub y activa **GitHub Pages** en *Settings → Pages*, o súbelo a cualquier alojamiento.
-2. Abre el visor y escribe la dirección del catálogo (y la clave, si la hay), o comparte el enlace directo que genera la ventana **Conexión y claves**.
+> La dirección es pública por diseño: solo entrega lo publicado. Si quieres limitar quién ve el visor, crea una **clave** en la misma ventana.
 
-Un mismo visor sirve para cualquier catálogo: no hay que modificarlo para cada comunidad.
+¿Quieres publicar tu propia copia del visor? Sube `index.html` a cualquier alojamiento (por ejemplo, GitHub Pages). No hay que modificarlo para cada comunidad.
 
-### 4. AppSheet (opcional)
-Crea una app desde la hoja y, cada vez que el programa agregue hojas o columnas, usa **Regenerate structure** en AppSheet.
+Para preparar la app de AppSheet, consulta [docs/APPSHEET.md](docs/APPSHEET.md).
 
 ---
 
@@ -166,15 +161,33 @@ Si necesitas hacer cambios grandes sin que el público vea el catálogo a medias
 | Al importar, aparece una lengua duplicada | La lengua tiene otro código internacional en el archivo de origen | Revisa el **código internacional** (ISO 639-3) en **🗣️ Lenguas** antes de importar |
 | Algo dejó de funcionar después de actualizar | Faltan hojas o columnas nuevas | **🧩 Revisar y reparar el catálogo**; si usas AppSheet, *Regenerate structure* |
 
-El manual completo, paso a paso, está en preparación.
+¿Vas a modificar el programa? Lee el [manual técnico](docs/MANUAL_TECNICO.md). El manual de uso paso a paso está en preparación.
+
+---
+
+## Contenido del repositorio
+
+| Archivo o carpeta | Qué es |
+|---|---|
+| `index.html` | El visor, listo para publicar (GitHub Pages lo sirve desde aquí). |
+| `Codigo.gs` | El programa del catálogo: se pega en Apps Script de la hoja. |
+| `docs/REPLICAR.md` | Crear el catálogo de tu comunidad, paso a paso. |
+| `docs/APPSHEET.md` | Guía para preparar la app de captura y su plantilla. |
+| `docs/MANUAL_TECNICO.md` | Cómo está hecho el programa y cómo modificarlo. |
+| `fuentes/visor/` | Las piezas con que se arma `index.html` y sus textos (`construir.py`). |
+| `pruebas/` | Pruebas automáticas del programa y del visor. |
+| `CHANGELOG.md` | Qué cambió en cada versión y qué hacer al actualizar. |
+| `LICENSE`, `NOTICE.md` | Licencia AGPL-3.0 y términos adicionales (crédito de autoría). |
+
+Para replicar el catálogo solo necesitas `Codigo.gs` e `index.html`; lo demás sirve para entender y mejorar el programa.
 
 ---
 
 ## Participar
 
-- **¿Tu comunidad o institución usa este visor?** Nos ayuda mucho saberlo, de forma voluntaria y sin ningún rastreo: [cómo avisarnos].
+- **¿Tu comunidad o institución usa este visor?** Nos ayuda mucho saberlo, de forma voluntaria y sin ningún rastreo: cuéntanos en un *issue* de este repositorio.
 - **Errores y sugerencias:** abre un *issue* en este repositorio.
-- **Contacto:** joalesmu@gmail.com.
+- **Cambios al código:** lee el [manual técnico](docs/MANUAL_TECNICO.md) y propón tus cambios con un *pull request*.
 
 ---
 
@@ -188,4 +201,4 @@ En pocas palabras, puedes usarlo, copiarlo, adaptarlo e instalarlo para tu comun
 
 Los **contenidos de cada catálogo** (palabras, audios, imágenes, descripciones) pertenecen a sus comunidades y se rigen por la licencia que cada catálogo elija. La licencia del programa no se aplica a ellos.
 
-Las versiones anteriores al [fecha del cambio] se publicaron bajo la licencia MIT.
+Las versiones anteriores a la 1.1 (octubre de 2026) se publicaron bajo la licencia MIT.
