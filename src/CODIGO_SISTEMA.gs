@@ -123,7 +123,7 @@ function _construirMenu() {
   _dicMemo = null;
   const ui = SpreadsheetApp.getUi();
   let nuevo = false;
-  try { const ss = SpreadsheetApp.getActiveSpreadsheet(); nuevo = !ss.getSheetByName(CONFIG.SHEETS.CONFIG) || !getAppConfig(ss).titulo; } catch (e) { nuevo = false; }
+  try { const ss = SpreadsheetApp.getActiveSpreadsheet(); nuevo = !ss.getSheetByName(CONFIG.SHEETS.CONFIG) || !getAppConfig(ss).titulo || _copiaSinIdentidad(ss) || _esPlantilla(ss); } catch (e) { nuevo = false; }
   const m = ui.createMenu(tx('menu.titulo'));
   if (nuevo) m.addItem(tx('menu.herr.primeros'), 'uiAsistenteInicial').addSeparator();
   m.addItem(tx('menu.panel'),      'uiPanel')
@@ -1798,6 +1798,8 @@ function publicarCatalogo(ss, forzar) {
   ss = ss || SpreadsheetApp.getActiveSpreadsheet();
   // Una copia de trabajo nunca publica: compartiría la publicación del catálogo principal
   if (_esRama(ss)) return { cambio: false, copiaDeTrabajo: true, version: '', conteos: {} };
+  _asegurarIdentidad(ss);                   // una copia nunca publica en el archivo del original
+  if (_esPlantilla(ss)) return { cambio: false, plantilla: true, version: '', conteos: {} };
   const cfg = getAppConfig(ss);
   const props = PropertiesService.getScriptProperties();
   props.setProperty(CONFIG.PROPS.TOKEN, cfg.apiToken || '');
@@ -1835,11 +1837,14 @@ function _leerManifiesto() {
 function _guardarSnapshotDrive(ss, texto) {
   const props = PropertiesService.getScriptProperties();
   let file = null;
-  const id = props.getProperty(CONFIG.PROPS.SNAPSHOT_FILE);
+  const id = props.getProperty(CONFIG.PROPS.SNAPSHOT_FILE), marca = 'hoja:' + ss.getId();
   if (id) { try { file = DriveApp.getFileById(id); if (file.isTrashed()) file = null; } catch (e) { file = null; } }
-  if (file) file.setContent(texto);
+  // El archivo de publicación lleva el ID de su hoja: si es de otra (una copia que heredó la propiedad), no se toca
+  if (file) { let d = ''; try { d = file.getDescription() || ''; } catch (e) {} if (d && d !== marca) file = null; }
+  if (file) { file.setContent(texto); try { if (!file.getDescription()) file.setDescription(marca); } catch (e) {} }
   else {
     file = _carpetaDelLibro(ss).createFile(CONFIG.SNAPSHOT_NOMBRE, texto, 'application/json');
+    try { file.setDescription(marca); } catch (e) {}
     props.setProperty(CONFIG.PROPS.SNAPSHOT_FILE, file.getId());
   }
 }
@@ -2296,6 +2301,8 @@ function servicioInstalacionCarpetas() {
     r = publicarCatalogo(ss, true);
   } finally { lock.releaseLock(); }
   const lineas = [tx('reparar.listo'), ''];
+  if (rep.copiaDe) lineas.push(tx('identidad.listo', { de: rep.copiaDe }), '');
+  if (r && r.plantilla) lineas.push(tx('identidad.esPlantilla'), '');
   if (!rep.hojasCreadas.length && !rep.columnas.length) lineas.push(tx('reparar.enOrden'));
   if (rep.hojasCreadas.length) lineas.push(tx('reparar.hojas', { hojas: rep.hojasCreadas.join(', ') }));
   if (rep.columnas.length) lineas.push(tx('reparar.columnas', { columnas: rep.columnas.join(' · ') }), '', tx('reparar.appsheet'));
@@ -2379,6 +2386,7 @@ function doGet(e) {
   };
   try {
     if (action === 'ping' && p.type !== 'audio') return responseJSON(info);
+    _identidadEnApi();
     const rol = _rolToken(p.token);
     const enMant = _respuestaMantenimiento(rol || 'publico');   // «cerrado»: pantalla de mantenimiento, aunque la clave falte
     if (enMant) return responseJSON(enMant);
@@ -2405,6 +2413,16 @@ function doGet(e) {
   } catch (err) {
     return responseJSON({ status: 500, error: err.message });
   }
+}
+
+/** En la dirección del visor: si esta hoja es una copia sin identidad propia, se la da (se revisa cada 6 horas como máximo). */
+function _identidadEnApi() {
+  try {
+    const cache = CacheService.getScriptCache();
+    if (cache.get('IDENTIDAD_OK')) return;
+    _asegurarIdentidad(SpreadsheetApp.getActiveSpreadsheet());
+    cache.put('IDENTIDAD_OK', '1', 21600);
+  } catch (e) { console.warn('Identidad: ' + e.message); }
 }
 
 function _tokenValido(t) {
@@ -2437,7 +2455,7 @@ function _esquema() {
       cols: ['NOMBRE_PROYECTO', 'SUBTITULO', 'idioma_activo', 'ID_CATALOGO', 'ID_CARPETA_RAIZ', 'ID_CARPETA_AUDIOS', 'ID_CARPETA_IMAGENES',
              'ID_CARPETA_VIDEOS', 'ID_CARPETA_CATEGORIAS', 'APPSHEET_APP_ID', 'API_TOKEN', 'VERSION_ESTRUCTURA',
              'CONTACTO_NOMBRE', 'CONTACTO_CORREO', 'CONTACTO_TELEFONO', 'CONTACTO_WHATSAPP', 'CONTACTO_HORARIO', 'CONTACTO_TEXTO',
-             'CREDITOS', 'ACERCA', 'LICENCIA', 'IDIOMA_INTERFAZ', 'SOLICITAR_IA', 'URL_API', 'URL_VISOR', 'CLAVE_EQUIPO', 'VISOR_AJUSTES', 'RAMA_DE', 'RAMA_URL', 'RAMA_NOMBRE', 'RAMA_FECHA', 'RAMA_AUTOR'] },
+             'CREDITOS', 'ACERCA', 'LICENCIA', 'IDIOMA_INTERFAZ', 'SOLICITAR_IA', 'URL_API', 'URL_VISOR', 'CLAVE_EQUIPO', 'VISOR_AJUSTES', 'RAMA_DE', 'RAMA_URL', 'RAMA_NOMBRE', 'RAMA_FECHA', 'RAMA_AUTOR', 'ID_HOJA', 'COPIA_DE', 'PLANTILLA'] },
     { hoja: S.IDIOMAS, color: '#7c3aed',
       cols: ['id_idioma', 'nombre_completo', 'nombre_propio', 'codigo_iso', 'glottocode', 'variante', 'region',
              'alfabeto', 'carpeta_audios', 'carpeta_videos', 'estado', 'notas', 'codigo_internacional', 'id_fuente_alfabeto'],
@@ -2491,6 +2509,8 @@ function _encabezados(sh) {
 /** Crea hojas y columnas faltantes, da formato, protege encabezados y valida. Idempotente. */
 function asegurarEstructura(ss) {
   const rep = { hojasCreadas: [], columnas: [], omitidas: [] };
+  const ident = _asegurarIdentidad(ss);   // una copia recibe su propia identidad antes de cualquier otra cosa
+  if (ident) rep.copiaDe = ident.de;
   _esquema().forEach(e => {
     let sh = ss.getSheetByName(e.hoja), nueva = false;
     if (!sh) { sh = ss.insertSheet(e.hoja); nueva = true; rep.hojasCreadas.push(e.hoja); }
@@ -2517,11 +2537,12 @@ function asegurarEstructura(ss) {
   // Identificador permanente del catálogo (para intercambio y grafos)
   const shCfg = ss.getSheetByName(CONFIG.SHEETS.CONFIG);
   _cfgMemo = null;
-  if (shCfg && !getAppConfig(ss).idCatalogo) _escribirConfig(ss, { ID_CATALOGO: Utilities.getUuid() });
+  const plantilla = _esPlantilla(ss);   // la plantilla no tiene código ni equipo: los recibe cada copia
+  if (shCfg && !plantilla && !getAppConfig(ss).idCatalogo) _escribirConfig(ss, { ID_CATALOGO: Utilities.getUuid() });
   // Quien instala queda como primera persona administradora
   const tEq = _tabla(ss, CONFIG.SHEETS.EQUIPO);
   const yo = _correoActual();
-  if (tEq && yo && !tEq.filas.some(f => _s(_get(tEq, f, 'correo')))) {
+  if (tEq && yo && !plantilla && !tEq.filas.some(f => _s(_get(tEq, f, 'correo')))) {
     _agregar(tEq, [{ correo: yo, nombre: '', rol: 'Administrador', activo: 'Sí', notas: tx('equipo.notaInstalo') }]);
     rep.equipo = yo;
   }
@@ -2630,7 +2651,12 @@ function _validarColumna(ss, hoja, col, regla) {
 function _mensajeHojaEnBlanco() {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    if (ss.getSheetByName(CONFIG.SHEETS.CONFIG)) return;
+    if (ss.getSheetByName(CONFIG.SHEETS.CONFIG)) {
+      // Copia de otro catálogo o plantilla: indicar el primer paso (aquí no se cambia nada: el disparador simple no puede)
+      if (_copiaSinIdentidad(ss)) ss.toast(tx('identidad.toast'), tx('identidad.toast.t'), 20);
+      else if (_esPlantilla(ss)) ss.toast(tx('identidad.plantilla.toast'), tx('identidad.plantilla'), 20);
+      return;
+    }
     const hojas = ss.getSheets();
     if (hojas.length === 1 && hojas[0].getLastRow() === 0) {
       hojas[0].getRange('A1').setValue(tx('inicio.mensaje')).setFontWeight('bold').setFontSize(14);
@@ -2848,6 +2874,8 @@ function guardarIdioma(d) {
 
 function uiAsistenteInicial() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let ident = null, plantilla = false;
+  try { ident = _asegurarIdentidad(ss); plantilla = _esPlantilla(ss); } catch (e) { /* hoja nueva */ }
   let cfg = {};
   try { if (ss.getSheetByName(CONFIG.SHEETS.CONFIG)) cfg = getAppConfig(ss); } catch (e) { cfg = {}; }
   const existentes = ss.getSheetByName(CONFIG.SHEETS.IDIOMAS) ? listarIdiomas().length : 0;
@@ -2869,6 +2897,8 @@ function uiAsistenteInicial() {
   </style>
   ${_tScript()}
   <div class="caja" id="form">
+    ${ident ? `<div class="ok">${txh('identidad.asistente', { de: ident.de })}</div>` : ''}
+    ${plantilla ? `<div class="error">${txh('identidad.plantilla.asistente')}<br><label style="font-weight:normal"><input type="checkbox" id="convertir"> ${txh('identidad.plantilla.convertir')}</label></div>` : ''}
     <p style="margin-top:0">${txh('asis.intro')}
     ${existentes ? `<br><small>${txh('asis.yaHay', { n: existentes })}</small>` : ''}</p>
     <label for="proyecto">${txh('asis.nombre')}</label>
@@ -2876,7 +2906,7 @@ function uiAsistenteInicial() {
     <label for="subtitulo">${txh('asis.frase')} <small>${op}</small></label>
     <input type="text" id="subtitulo" value="${_esc(cfg.subtitulo || '')}">
     <label for="n">${txh('asis.cuantas')} <small>${txh('asis.cuantas.d')}</small></label>
-    <input type="number" id="n" min="1" max="30" value="${existentes ? 1 : 2}" onchange="pintar()">
+    <input type="number" id="n" min="${existentes ? 0 : 1}" max="30" value="${existentes ? 0 : 2}" onchange="pintar()">
     <div id="lenguas"></div>
     <label for="ref">${txh('asis.referencia')} <small>${txh('asis.referencia.d')}</small></label>
     <select id="ref"></select>
@@ -2900,7 +2930,7 @@ function uiAsistenteInicial() {
       codigo_iso: b.querySelector('.iso').value, variante: b.querySelector('.var').value, atajos: b.querySelector('.at').value })); }
     function pintar(){
       previos = leer();
-      const n = Math.max(1, Math.min(30, Number($('n').value) || 1));
+      const n = Math.max(${existentes ? 0 : 1}, Math.min(30, Number($('n').value) || 0));
       let h = '';
       for (let i = 0; i < n; i++) {
         const p = previos[i] || {};
@@ -2924,7 +2954,7 @@ function uiAsistenteInicial() {
     function instalar(){
       const d = { proyecto: $('proyecto').value, subtitulo: $('subtitulo').value, lenguas: leer(), referencia: $('ref').value,
                   categorias: $('cats').value, carpetas: $('carpetas').checked, clave: $('clave').checked,
-                  ocultar: $('ocultar').checked, appsheet: $('appsheet').value };
+                  ocultar: $('ocultar').checked, appsheet: $('appsheet').value, convertir: !!($('convertir') && $('convertir').checked) };
       $('btn').disabled = true; $('res').textContent = tt('asis.preparando');
       google.script.run.withFailureHandler(e => { $('btn').disabled = false; $('res').innerHTML = '<div class="error">' + esc(tt('comun.error', {m: e.message})) + '</div>'; })
         .withSuccessHandler(r => {
@@ -2945,9 +2975,13 @@ function instalarCatalogo(d) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     if (!_s(d.proyecto)) throw new Error(tx('asis.error.nombre'));
     const lenguas = (d.lenguas || []).filter(l => _s(l.nombre_propio) || _s(l.nombre_completo));
-    if (!lenguas.length) throw new Error(tx('asis.error.lengua'));
+    _asegurarIdentidad(ss);
+    if (_esPlantilla(ss) && !d.convertir) throw new Error(tx('identidad.plantilla.error'));
+    const yaHabia = ss.getSheetByName(CONFIG.SHEETS.IDIOMAS) ? listarIdiomas().length : 0;
+    if (!lenguas.length && !yaHabia) throw new Error(tx('asis.error.lengua'));
     lenguas.forEach(l => { _datosIdioma(l); _parsearAtajos(l.atajos); }); // valida todo antes de tocar nada
 
+    if (_esPlantilla(ss)) _escribirConfig(ss, { PLANTILLA: '' });   // quien la usa aquí la convierte en catálogo
     asegurarEstructura(ss);
     _eliminarHojaInicial(ss);
     _escribirConfig(ss, { NOMBRE_PROYECTO: _s(d.proyecto), SUBTITULO: _s(d.subtitulo), VERSION_ESTRUCTURA });
@@ -2983,7 +3017,7 @@ function instalarCatalogo(d) {
     if (cfg.apiToken) pasos.push(tx('asis.paso.clave', { clave: cfg.apiToken }));
     return {
       proyecto: cfg.titulo, carpeta, pasos,
-      resumen: [tx('asis.resumen.lenguas', { n: lenguas.length }), tx('asis.resumen.categorias', { n: cats.length }), tx('asis.resumen.atajos', { n: atajos }),
+      resumen: [tx('asis.resumen.lenguas', { n: lenguas.length + yaHabia }), tx('asis.resumen.categorias', { n: cats.length }), tx('asis.resumen.atajos', { n: atajos }),
         tx(d.carpetas ? 'asis.resumen.carpetas' : 'asis.resumen.sinCarpetas')]
     };
   } finally { lock.releaseLock(); }
@@ -3226,6 +3260,7 @@ function uiAlternarHojasTecnicas() {
 function panelEstado() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   if (!ss.getSheetByName(CONFIG.SHEETS.CONFIG)) return { configurado: false };
+  _asegurarIdentidad(ss);
   _cfgMemo = null;
   const cfg = getAppConfig(ss);
   const tTr = _tabla(ss, CONFIG.SHEETS.TRADUCCIONES), tPal = _tabla(ss, CONFIG.SHEETS.PALABRAS);
@@ -3247,6 +3282,8 @@ function panelEstado() {
     modoCaptura: _col(tTr, 'texto_captura') > -1,
     clave: !!cfg.apiToken,
     sinDireccion: !!cfg.titulo && !cfg.urlApi,
+    copiaDe: !cfg.urlApi ? _s(_configCruda(ss).COPIA_DE) : '',
+    plantilla: _esPlantilla(ss),
     propuestas: (() => { try { const pa = _propuestasAjustes(ss); return { activo: !!pa.activo, pendientes: ss.getSheetByName(CONFIG.SHEETS.PROPUESTAS) ? readSheet(ss, CONFIG.SHEETS.PROPUESTAS).filter(x => _s(x.estado) === 'Pendiente').length : 0 }; } catch (e) { return null; } })(),
     sinCorreo: !_s((cfg.contacto || {}).correo),
     drive: _espacioDrive(),
@@ -3311,6 +3348,7 @@ function uiPanel() {
     function alternar(){ google.script.run.withSuccessHandler(m => $('msg').textContent = m).uiAlternarHojasTecnicas(); }
     function estado(){
       google.script.run.withFailureHandler(e => $('estado').textContent = tt('comun.error', {m: e.message})).withSuccessHandler(s => {
+        if (s.plantilla) { $('t').textContent = tt('identidad.plantilla'); $('estado').innerHTML = th('identidad.plantilla.panel'); return; }
         if (!s.configurado) { $('t').textContent = tt('panel.nuevo.titulo'); $('estado').innerHTML = th('panel.nuevo.texto'); return; }
         $('t').textContent = s.titulo;
         const e = s.porEstado;
@@ -3319,9 +3357,10 @@ function uiPanel() {
           (e.retirado ? th('panel.resumen.retiradas', {n: e.retirado}) : '') + '<br>' +
           th('panel.resumen.publicado', {fecha: s.publicado || tt('panel.resumen.nunca')}) + '<br>' + th(s.clave ? 'panel.resumen.conClave' : 'panel.resumen.sinClave') +
           (s.modoCaptura ? '<br>' + th('panel.resumen.captura') : '');
-        $('falta').innerHTML = s.sinDireccion ? '<div class="estado" style="background:#fffbeb;border-color:#fde68a"><b>' + th('panel.sinDireccion.t') + '</b><ol style="margin:4px 0 0 18px;padding:0">' +
+        $('falta').innerHTML = (s.copiaDe ? '<div class="estado" style="background:#eff6ff;border-color:#bfdbfe">' + th('identidad.panel', {de: s.copiaDe}) + '</div>' : '') +
+          (s.sinDireccion ? '<div class="estado" style="background:#fffbeb;border-color:#fde68a"><b>' + th('panel.sinDireccion.t') + '</b><ol style="margin:4px 0 0 18px;padding:0">' +
           ['panel.sinDireccion.1', 'panel.sinDireccion.2', 'panel.sinDireccion.3'].map(k => '<li>' + th(k) + '</li>').join('') + '</ol>' +
-          '<button onclick="abrir(\\'uiVerEnlaceApi\\')">' + th('panel.direccion') + '</button></div>' : '';
+          '<button onclick="abrir(\\'uiVerEnlaceApi\\')">' + th('panel.direccion') + '</button></div>' : '');
         const pr = s.propuestas, av = [];
         if (pr && pr.pendientes) av.push('<button onclick="abrir(\\'uiPropuestas\\')">📥 ' + th('panel.propuestasPend', {n: pr.pendientes}) + '</button>');
         if (s.sinCorreo) av.push('<div>✉️ ' + th('panel.sinCorreo') + '</div>');
@@ -5891,7 +5930,7 @@ function mediosAudioDe(idPalabra, idIdioma) {
 
 function _catalogoActual(ss) {
   const cfg = getAppConfig(ss);
-  return { titulo: cfg.titulo || ss.getName(), archivo: ss.getName(), rama: _esRama(ss), copia: _esCopia(ss) };
+  return { titulo: cfg.titulo || ss.getName(), archivo: ss.getName(), rama: _esRama(ss), copia: _vieneDeCopia(ss) ? true : _esCopia(ss) };
 }
 
 /** Retira las traducciones guardadas sin lengua válida (la primera versión de esta ventana las guardaba como «undefined»). */
@@ -7325,7 +7364,9 @@ function _historial(ss, hoja, id, antes, despues) {
 // ── Administración y directorio privado (fuera de la carpeta del catálogo) ──
 
 function _soyAdmin(ss) {
+  try { _asegurarIdentidad(ss); } catch (e) { /* sin permisos para escribir: se revisa después */ }
   const t = _tabla(ss, CONFIG.SHEETS.EQUIPO), yo = _correoActual();
+  try { if (yo && _k(ss.getOwner().getEmail()) === yo) return true; } catch (e) { /* unidad compartida: sin dueño único */ }
   if (!t || !yo || !t.filas.some(f => _s(_get(t, f, 'correo')))) return true; // instalación inicial
   return t.filas.some(f => _k(_get(t, f, 'correo')) === yo && _rolEquipo(_get(t, f, 'rol')) === 'Administrador' && _activo(_get(t, f, 'activo')));
 }
@@ -8025,11 +8066,12 @@ const HOJAS_LIMPIABLES = () => { const S = CONFIG.SHEETS; return [S.TRADUCCIONES
 function limpiezaOpciones() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   _requerirAdmin(ss);
+  _asegurarIdentidad(ss);
   const p = permisosListar();
   const idiomas = listarIdiomas().map(i => ({ id: i.id, nombre: (i.nombre_propio || i.nombre_completo) + (i.codigo_iso ? ' (' + i.codigo_iso + ')' : ''), textos: i.textos }));
   return { lotes: p.lotes, fuentes: p.fuentes.map(f => ({ id: f.id_fuente, nombre: f.titulo })), comunidades: p.comunidades, idiomas,
     hojas: HOJAS_LIMPIABLES().filter(h => ss.getSheetByName(h)), palabra: tx('limpiar.palabraConfirmar'),
-    copia: _esCopia(ss), titulo: getAppConfig(ss).titulo || ss.getName(), archivo: ss.getName(), respaldos: _listaRespaldos(ss) };
+    copia: _vieneDeCopia(ss) ? true : _esCopia(ss), titulo: getAppConfig(ss).titulo || ss.getName(), archivo: ss.getName(), respaldos: _listaRespaldos(ss) };
 }
 
 /** Calcula qué filas se borrarían: { hoja: Set(índices de fila) }. */
@@ -8085,7 +8127,8 @@ function _planLimpieza(ss, op) {
     case 'enBlanco': {
       const conservar = new Set([S.REGLAS].filter(() => op.conservarAtajos).concat(op.conservarLenguas ? [S.IDIOMAS, S.COMUNIDADES] : []));
       HOJAS_LIMPIABLES().filter(h => !conservar.has(h)).forEach(h => filas(h, (t, f) => !(h === S.FUENTES && v(_get(t, f, 'id_fuente')) === FUENTE_EQUIPO)));
-      if (!op.conservarEquipo) { const yo = _correoActual(); filas(S.EQUIPO, (t, f) => v(_get(t, f, 'correo')) !== yo); }
+      if (op.plantilla) filas(S.EQUIPO, () => true);   // una plantilla no lleva a nadie: cada copia pone a quien la hizo
+      else if (!op.conservarEquipo) { const yo = _correoActual(); filas(S.EQUIPO, (t, f) => v(_get(t, f, 'correo')) !== yo); }
       filas(S.HISTORIAL, () => true);
       if (ss.getSheetByName(S.AUDIT)) filas(S.AUDIT, () => true);
       [S.AVISOS, S.COPIAS].forEach(h => { if (ss.getSheetByName(h)) filas(h, () => true); });   // avisos y copias eran del catálogo anterior
@@ -8146,8 +8189,10 @@ function limpiezaAplicar(op, total, confirmacion) {
   _requerirAdmin(ss);
   if (_k(confirmacion) !== _k(tx('limpiar.palabraConfirmar'))) throw new Error(tx('limpiar.error.confirmar', { palabra: tx('limpiar.palabraConfirmar') }));
   // «Preparar una copia en blanco» no se hace en la hoja original; si no se sabe, exige escribir su nombre
-  if (op && op.tipo === 'enBlanco' && _esCopia(ss) === false) throw new Error(tx('blanco.esOriginal', { nombre: getAppConfig(ss).titulo || ss.getName() }));
-  if (op && op.tipo === 'enBlanco' && _esCopia(ss) !== true && _k(op.nombreOriginal) !== _k(getAppConfig(ss).titulo || ss.getName()))
+  _asegurarIdentidad(ss);
+  const copia = _vieneDeCopia(ss) ? true : _esCopia(ss);
+  if (op && op.tipo === 'enBlanco' && copia === false) throw new Error(tx('blanco.esOriginal', { nombre: getAppConfig(ss).titulo || ss.getName() }));
+  if (op && op.tipo === 'enBlanco' && copia !== true && _k(op.nombreOriginal) !== _k(getAppConfig(ss).titulo || ss.getName()))
     throw new Error(tx('blanco.error.original', { nombre: getAppConfig(ss).titulo || ss.getName() }));
   const lock = _lock();
   try {
@@ -8297,30 +8342,110 @@ function limpiezaRestaurar(idRespaldo, conConfig, total) {
 
 // ── Copia en blanco: identidad propia ───────────────────────────────────────
 
-/** Guarda el ID de esta hoja. En una copia, el ID guardado (que viaja con el script) ya no coincide. */
+// Cada hoja guarda su propio ID en CONFIGURACION (ID_HOJA), que viaja con el contenido cuando alguien copia la hoja
+// (Archivo → Hacer una copia, o «Copiar app» en AppSheet con sus datos). Si el ID guardado no coincide con el de la
+// hoja, es una copia: la primera vez que el programa trabaja en ella le da identidad propia (_asegurarIdentidad),
+// para que nunca publique encima del catálogo original, ni comparta su código, su clave, su directorio de voces,
+// sus carpetas o su equipo. Las copias de trabajo (ramas) son la excepción: siguen ligadas a su principal.
+
+/** Propiedades del script que apuntan a archivos o claves del catálogo (si el script se copió, son del original). */
+const PROPS_DEL_CATALOGO = () => [CONFIG.PROPS.SNAPSHOT_FILE, CONFIG.PROPS.MANIFIESTO, CONFIG.PROPS.TOKEN, PROP_DIRECTORIO, 'CARPETA_PRIVADA_ID',
+  'IMAGENES_ULTIMO_REPORTE', PROP_SNAP_CONGELADO, PROP_MANIF_CONGELADO, PROP_ESTADO_VISOR, PROP_TOKEN_EQUIPO, PROP_HOJAS_ILUSTRACION];
+/** Columnas de CONFIGURACION que identifican al catálogo o apuntan a sus archivos (una copia no las conserva). */
+const CONFIG_DE_IDENTIDAD = { URL_API: '', URL_VISOR: '', CLAVE_EQUIPO: '', APPSHEET_APP_ID: '', VISOR_AJUSTES: '',
+  ID_CARPETA_RAIZ: '', ID_CARPETA_AUDIOS: '', ID_CARPETA_IMAGENES: '', ID_CARPETA_VIDEOS: '', ID_CARPETA_CATEGORIAS: '' };
+
+/** Guarda el ID de esta hoja (en CONFIGURACION y en el script). En una copia no hace nada: primero va _asegurarIdentidad. */
 function _registrarHoja(ss) {
-  const p = PropertiesService.getScriptProperties();
-  if (!p.getProperty('HOJA_ID')) p.setProperty('HOJA_ID', ss.getId());
+  if (!ss.getSheetByName(CONFIG.SHEETS.CONFIG)) return;
+  const id = ss.getId(), c = _s(_configCruda(ss).ID_HOJA);
+  if (c && c !== id) return;
+  if (!c) _escribirConfig(ss, { ID_HOJA: id });   // catálogos anteriores: se toman como originales (nunca se reinician solos)
+  try { const p = PropertiesService.getScriptProperties(); if (p.getProperty('HOJA_ID') !== id) p.setProperty('HOJA_ID', id); } catch (e) {}
 }
-/** true = es una copia; false = es la hoja original; null = no se sabe. */
+/** true = es una copia; false = es la hoja original; null = no se sabe (catálogo anterior que nunca se registró). */
 function _esCopia(ss) {
-  const id = PropertiesService.getScriptProperties().getProperty('HOJA_ID');
-  return id ? id !== ss.getId() : null;
+  const id = ss.getId(), c = _s(_configCruda(ss).ID_HOJA);
+  if (c) return c !== id;
+  let p = ''; try { p = PropertiesService.getScriptProperties().getProperty('HOJA_ID') || ''; } catch (e) {}
+  return p ? p !== id : null;
 }
+/** Copia segura de reconocer: el ID guardado en la propia hoja es de otra hoja (y no es una copia de trabajo). */
+function _copiaSinIdentidad(ss) {
+  try {
+    if (!ss.getSheetByName(CONFIG.SHEETS.CONFIG)) return false;
+    const c = _configCruda(ss);
+    return !!c.ID_HOJA && c.ID_HOJA !== ss.getId() && !c.RAMA_DE;
+  } catch (e) { return false; }
+}
+/** Hoja preparada como plantilla para compartir (no publica; cada copia se vuelve un catálogo propio). */
+function _esPlantilla(ss) { try { return _sinAcentos(_configCruda(ss).PLANTILLA) === 'si'; } catch (e) { return false; } }
+/** Esta hoja nació como copia de otro catálogo (aunque ya tenga identidad propia). */
+function _vieneDeCopia(ss) { return _esCopia(ss) === true || !!_configCruda(ss).COPIA_DE; }
+
+/**
+ * Si esta hoja es una copia sin identidad propia, se la da: código de catálogo y clave nuevos; olvida la dirección,
+ * las carpetas, la app de AppSheet, los ajustes del visor, la publicación y el directorio de voces del original.
+ * No borra palabras ni nada del contenido. Quien hizo la copia queda como administrador; el equipo heredado queda
+ * inactivo (no se borra: se puede reactivar en 👥 Equipo). Devuelve { de } si lo hizo, o null.
+ */
+function _asegurarIdentidad(ss) {
+  ss = ss || SpreadsheetApp.getActiveSpreadsheet();
+  if (!_copiaSinIdentidad(ss)) return null;
+  const c = _configCruda(ss);
+  const de = c.NOMBRE_PROYECTO || (c.PLANTILLA ? tx('identidad.plantilla') : '') || c.ID_CATALOGO || '?';
+  const fecha = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  _escribirConfig(ss, Object.assign({}, CONFIG_DE_IDENTIDAD, {
+    ID_CATALOGO: Utilities.getUuid(), API_TOKEN: c.API_TOKEN ? _nuevaClave() : '', PLANTILLA: '',
+    COPIA_DE: `${de} · ${fecha}`, ID_HOJA: ss.getId() }));
+  const t = _tabla(ss, CONFIG.SHEETS.IDIOMAS);
+  if (t) t.filas.forEach((f, i) => { if (_s(_get(t, f, 'carpeta_audios')) || _s(_get(t, f, 'carpeta_videos'))) _actualizar(t, i, { carpeta_audios: '', carpeta_videos: '' }); });
+  _olvidarPropiedades(ss);
+  // Equipo: quien hizo la copia administra; el equipo del original queda inactivo (no se borra)
+  const tEq = _tabla(ss, CONFIG.SHEETS.EQUIPO), yo = _correoActual();
+  if (tEq) {
+    tEq.filas.forEach((f, i) => {
+      const correo = _k(_get(tEq, f, 'correo'));
+      if (!correo) return;
+      if (correo === yo) _actualizar(tEq, i, { rol: 'Administrador', activo: 'Sí' });
+      else if (_activo(_get(tEq, f, 'activo'))) _actualizar(tEq, i, { activo: 'No', notas: tx('identidad.notaEquipo', { de }) });
+    });
+    if (yo && !tEq.filas.some(f => _k(_get(tEq, f, 'correo')) === yo)) _agregar(tEq, [{ correo: yo, nombre: '', rol: 'Administrador', activo: 'Sí', notas: tx('equipo.notaInstalo') }]);
+  }
+  try { _historial(ss, CONFIG.SHEETS.CONFIG, 'ID_CATALOGO', { catalogo: de, id: c.ID_CATALOGO }, { id: getAppConfig(ss).idCatalogo }); } catch (e) {}
+  _cfgMemo = null;
+  return { de };
+}
+
+/** Borra las propiedades que apuntan a archivos o claves de un catálogo (y deja registrado el ID de esta hoja). */
+function _olvidarPropiedades(ss) {
+  const p = PropertiesService.getScriptProperties();
+  PROPS_DEL_CATALOGO().forEach(k => { try { p.deleteProperty(k); } catch (e) {} });
+  try { PropertiesService.getDocumentProperties().deleteProperty('CONSTANCIA_FIRMAS'); } catch (e) {}
+  try { CacheService.getScriptCache().remove(`${CONFIG.CACHE.PREFIX}_meta`); } catch (e) {}
+  p.setProperty('HOJA_ID', ss.getId());
+}
+
 /**
  * Después de dejar en blanco: código de catálogo y clave nuevos; se olvidan las carpetas, la app de AppSheet,
  * el directorio de voces y la publicación heredados (el asistente de Primeros pasos los crea de nuevo).
+ * Con op.plantilla, además queda lista para compartir: sin nombre, contacto, créditos, claves ni equipo, y marcada
+ * como plantilla (no publica; cada copia se vuelve un catálogo propio con su propio código).
  */
 function _identidadNueva(ss, op) {
   const cfg = getAppConfig(ss);
-  _escribirConfig(ss, { ID_CATALOGO: Utilities.getUuid(), API_TOKEN: _nuevaClave(), APPSHEET_APP_ID: '', URL_API: '', CLAVE_EQUIPO: '',
-    ID_CARPETA_RAIZ: '', ID_CARPETA_AUDIOS: '', ID_CARPETA_IMAGENES: '', ID_CARPETA_VIDEOS: '', ID_CARPETA_CATEGORIAS: '',
-    NOMBRE_PROYECTO: _s(op.nombreNuevo) || cfg.titulo || ss.getName() });
+  const base = Object.assign({}, CONFIG_DE_IDENTIDAD, op.plantilla ? {} : { VISOR_AJUSTES: cfg.visorAjustes || '' });
+  if (op.plantilla) {
+    _escribirConfig(ss, Object.assign(base, { ID_CATALOGO: '', API_TOKEN: '', NOMBRE_PROYECTO: '', SUBTITULO: '', CREDITOS: '', ACERCA: '', LICENCIA: '',
+      CONTACTO_NOMBRE: '', CONTACTO_CORREO: '', CONTACTO_TELEFONO: '', CONTACTO_WHATSAPP: '', CONTACTO_HORARIO: '', CONTACTO_TEXTO: '',
+      PLANTILLA: 'Sí', COPIA_DE: '', ID_HOJA: ss.getId() }));
+  } else {
+    _escribirConfig(ss, Object.assign(base, { ID_CATALOGO: Utilities.getUuid(), API_TOKEN: _nuevaClave(), ID_HOJA: ss.getId(),
+      NOMBRE_PROYECTO: _s(op.nombreNuevo) || cfg.titulo || ss.getName() }));
+  }
   const t = _tabla(ss, CONFIG.SHEETS.IDIOMAS);
   if (t) t.filas.forEach((f, i) => { if (_s(_get(t, f, 'carpeta_audios')) || _s(_get(t, f, 'carpeta_videos'))) _actualizar(t, i, { carpeta_audios: '', carpeta_videos: '' }); });
-  const p = PropertiesService.getScriptProperties();
-  [CONFIG.PROPS.SNAPSHOT_FILE, CONFIG.PROPS.MANIFIESTO, CONFIG.PROPS.TOKEN, PROP_DIRECTORIO, 'CARPETA_PRIVADA_ID', 'IMAGENES_ULTIMO_REPORTE'].forEach(k => { try { p.deleteProperty(k); } catch (e) {} });
-  p.setProperty('HOJA_ID', ss.getId());
+  _olvidarPropiedades(ss);
   _cfgMemo = null;
 }
 
@@ -8469,7 +8594,8 @@ function uiLimpiar() {
         else h = (O.copia === true ? '<div class="ok">' + th('blanco.esCopia') + '</div>' : '<div class="error">' + th('blanco.noSe', {nombre: O.titulo}) + '</div>' +
             '<label for="d_original">' + th('blanco.escribeNombre', {nombre: O.titulo}) + '</label><input type="text" id="d_original" autocomplete="off">') +
           '<label for="d_nombreNuevo">' + th('blanco.nombreNuevo') + '</label><input type="text" id="d_nombreNuevo" placeholder="' + esc(O.titulo) + '">' +
-          chk('d_lenguas', 'blanco.conservarLenguas', true) + chk('d_atajos', 'blanco.conservarAtajos', true) + chk('d_equipo', 'blanco.conservarEquipo');
+          chk('d_lenguas', 'blanco.conservarLenguas', true) + chk('d_atajos', 'blanco.conservarAtajos', true) + chk('d_equipo', 'blanco.conservarEquipo') +
+          chk('d_plantilla', 'blanco.plantilla') + '<small>' + th('blanco.plantilla.d') + '</small>';
       }
       if (t === 'restaurar') h = O.respaldos.length ? '<label for="d_resp">' + th('limpiar.r.cual') + '</label><select id="d_resp">' + opt(O.respaldos.map(r => ({v: r.id, t: r.fecha + ' · ' + r.nombre})), true) + '</select>'
         : '<div class="ok">' + th('limpiar.r.ninguno') + '</div>';
@@ -8486,7 +8612,7 @@ function uiLimpiar() {
       if (t === 'lengua') { o.id_idioma = val('d_lengua'); o.incluirLengua = on('d_incluirLengua'); }
       if (t === 'autorizaciones') { const a = val('d_aut'); if (a.startsWith('f|')) o.id_fuente = a.slice(2); if (a.startsWith('c|')) o.id_comunidad = a.slice(2); }
       if (t === 'hoja') o.hoja = val('d_hoja');
-      if (t === 'enBlanco') { o.conservarLenguas = on('d_lenguas'); o.conservarAtajos = on('d_atajos'); o.conservarEquipo = on('d_equipo'); o.nombreNuevo = val('d_nombreNuevo'); if ($('d_original')) o.nombreOriginal = val('d_original'); }
+      if (t === 'enBlanco') { o.conservarLenguas = on('d_lenguas'); o.conservarAtajos = on('d_atajos'); o.plantilla = on('d_plantilla'); o.conservarEquipo = on('d_equipo') && !o.plantilla; o.nombreNuevo = val('d_nombreNuevo'); if ($('d_original')) o.nombreOriginal = val('d_original'); }
       if (t === 'restaurar') o.respaldo = val('d_resp');
       return o;
     }
@@ -9878,6 +10004,21 @@ const T_ES = {
   "limpiar.verRespaldo": "Ver el respaldo",
   "limpiar.listo": "✅ Listo: se quitaron {n} fila(s) en el archivo *{archivo}*.",
   "limpiar.error.noSeBorro": "Google no terminó de borrar estas hojas: {hojas}. No se cambió nada más. Vuelve a intentarlo; lo que se alcanzó a borrar está en el respaldo: {respaldo}",
+  "blanco.plantilla": "Preparar como plantilla para compartir",
+  "blanco.plantilla.d": "Quita también el nombre, el contacto, los créditos, la licencia, las claves y todo el equipo. La hoja queda marcada como plantilla: no publica, y cada copia que alguien haga (con Archivo → Hacer una copia o copiando la app de AppSheet) se vuelve un catálogo propio, con su propio código, al abrir 🚀 Primeros pasos.",
+  "identidad.plantilla": "Plantilla de catálogo",
+  "identidad.toast.t": "Esta hoja es una copia",
+  "identidad.toast": "Viene de otro catálogo. Para que sea tuya, empieza con 💠 CATÁLOGO → 🚀 Primeros pasos: tendrá su propio código, su propia clave y tú quedarás como administrador.",
+  "identidad.plantilla.toast": "Esta es la plantilla para compartir. No la uses como catálogo: haz una copia (Archivo → Hacer una copia) o copia la app de AppSheet, y abre la copia.",
+  "identidad.plantilla.panel": "Esta hoja es la *plantilla* para que otras comunidades hagan su catálogo. No publica nada. Para crear un catálogo, haz una copia de esta hoja (o copia la app de AppSheet) y abre la copia: 🚀 Primeros pasos la prepara.",
+  "identidad.plantilla.asistente": "⚠️ Esta hoja es la plantilla para compartir. Lo normal es hacer una copia y usar la copia. Si de verdad quieres convertir esta misma hoja en un catálogo, marca la casilla.",
+  "identidad.plantilla.convertir": "Convertir esta plantilla en un catálogo",
+  "identidad.plantilla.error": "Esta hoja es la plantilla. Haz una copia y abre la copia, o marca «Convertir esta plantilla en un catálogo».",
+  "identidad.esPlantilla": "📄 Esta hoja es la plantilla para compartir: no publica. Cada copia se vuelve un catálogo propio.",
+  "identidad.asistente": "✅ Esta hoja venía de «{de}». Ya tiene su propio código y quedaste como administrador. Completa los datos de tu catálogo.",
+  "identidad.listo": "🆕 Esta hoja era una copia de «{de}»: ya tiene su propio código y su propia clave, y quedaste como administrador. El equipo del catálogo original quedó inactivo (revísalo en 👥 Equipo). No se borró ninguna palabra.",
+  "identidad.panel": "🆕 Copia de «{de}» con identidad propia. Sigue en 🚀 Primeros pasos y después dale su dirección al catálogo (abajo).",
+  "identidad.notaEquipo": "Venía del catálogo «{de}» (copia). Reactívalo si también trabaja en este.",
   "blanco.despues": "Esta hoja ya es un catálogo propio («{nombre}») con código y clave nuevos. AppSheet y el visor todavía no están conectados a ella: configúralos en 🚀 Primeros pasos.",
   "limpiar.borrando": "Guardando el respaldo y borrando…",
   "limpiar.borrar": "🗑️ Borrar",
@@ -10599,9 +10740,9 @@ const T_ES = {
   "menu.herr.reparar": "🧩 Revisar y reparar el catálogo",
   "menu.herr.codigos": "🆔 Completar códigos que faltan",
   "menu.herr.aplicarAtajos": "🔄 Aplicar los atajos a todo lo escrito",
-  "menu.herr.modoCaptura": "🧷 Escribir con atajos desde la app",
+  "menu.herr.modoCaptura": "🧷 Conservar lo que se escribe (modo captura)",
   "menu.herr.visor": "🔃 El visor no muestra los cambios",
-  "inicio.mensaje": "👋 Para empezar: menú 💠 CATÁLOGO → 🔧 Herramientas → 🚀 Primeros pasos",
+  "inicio.mensaje": "👋 Para empezar: menú 💠 CATÁLOGO → 🚀 Primeros pasos",
   "comun.abriendo": "⏳ Abriendo…",
   "comun.guardando": "⏳ Guardando…",
   "comun.cargando": "Cargando…",
@@ -10685,23 +10826,23 @@ const T_ES = {
   "atajos.error.iguales": "Lo que se teclea y lo que debe quedar son iguales: el atajo no cambiaría nada.",
   "atajos.error.patron": "El patrón avanzado no está bien escrito: {m}",
   "atajos.error.noExiste": "No se encontró ese atajo.",
-  "atajos.error.inestable": "Este atajo solo se puede encender si los atajos funcionan desde la app (🔧 Herramientas → Escribir con atajos desde la app).",
+  "atajos.error.inestable": "Este atajo cambia su propio resultado: solo se puede encender con el modo captura (🔧 Mantenimiento → 🧷 Conservar lo que se escribe).",
   "atajos.aviso.inestableCaptura": "Ojo: este atajo vuelve a cambiar su propio resultado (por ejemplo, “a” → “aa”). Funciona, pero revisa que sea lo que quieres.",
-  "atajos.aviso.inestable": "Este atajo vuelve a cambiar su propio resultado (por ejemplo, “a” → “aa” terminaría en “aaaa…”). Para poder usarlo, primero activa 🔧 Herramientas → Escribir con atajos desde la app.",
-  "atajos.aviso.sinAutor": "Los atajos “solo para mí” necesitan saber quién escribió cada palabra. Actívalo en 🔧 Herramientas → Escribir con atajos desde la app.",
+  "atajos.aviso.inestable": "Este atajo vuelve a cambiar su propio resultado (por ejemplo, «a» → «aa» terminaría en «aaaa…»). Para usarlo hace falta el modo captura: 🔧 Mantenimiento → 🧷 Conservar lo que se escribe. Casi nunca es necesario: un atajo como + → ɨ funciona sin él.",
+  "atajos.aviso.sinAutor": "Los atajos «solo para mí» necesitan saber quién escribió cada palabra (columna creado_por). La app de AppSheet la llena con el correo de quien captura; mientras esté vacía, este atajo no se aplicará.",
   "atajos.aviso.nada": "Por ahora no cambia nada de lo escrito. Se usará con lo que se escriba después.",
   "atajos.guardado": "Atajo guardado. Palabras corregidas: {n}.",
   "atajos.nota": "Creado desde el panel por {quien} ({fecha})",
   "atajos.notaAsistente": "Atajo definido en el asistente",
   "atajos.error.formato": "No entiendo el atajo \"{atajo}\". Escríbelo así: lo que se teclea = lo que debe quedar (ej. +=ɨ).",
-  "captura.titulo": "Escribir con atajos desde la app",
-  "captura.texto": "Con esto, lo que el equipo escriba en la app con atajos (por ejemplo +) se guarda ya corregido (ɨ), y también se guarda lo que escribió tal cual.\n\nQué va a cambiar en la hoja TRADUCCIONES:\n• Aparece la columna texto_captura: ahí queda lo que se escribió.\n• La columna texto se llena sola, ya corregida. Si alguien la cambia a mano, se vuelve a calcular.\n\nDespués, en la app de AppSheet, alguien del equipo debe:\n1. Volver a leer la tabla TRADUCCIONES (botón Regenerate).\n2. Escribir en texto_captura y dejar texto sin editar.\n\n¿Continuar?",
+  "captura.titulo": "Conservar lo que se escribe (modo captura)",
+  "captura.texto": "Los atajos ya funcionan desde la app sin hacer nada: cada hora el programa corrige lo escrito (por ejemplo + → ɨ). Este modo es opcional y sirve para dos cosas:\n• Conservar exactamente lo que se escribió, para recalcular todo si después cambian los atajos.\n• Usar atajos que cambian su propio resultado (por ejemplo «a» → «aa»).\n\nQué va a cambiar en la hoja TRADUCCIONES:\n• Aparece la columna texto_captura: ahí queda lo que se escribió.\n• La columna texto se llena sola, ya corregida, en la siguiente revisión (o al momento con 🔄 Aplicar los atajos a todo lo escrito).\n\nOjo: en la app de AppSheet alguien debe, una sola vez, volver a leer la tabla TRADUCCIONES (Regenerate) y escribir en texto_captura en lugar de texto. Si la app ya viene preparada así, no hay que hacer nada.\n\n¿Continuar?",
   "captura.listo": "✅ Listo: los atajos ya funcionan desde la app.\nColumnas nuevas: {columnas}\nPalabras corregidas: {n}.",
   "captura.yaEstaban": "ninguna (ya estaban)",
   "atajos.aplicados": "✅ Listo: se aplicaron los atajos a todo lo escrito. Palabras corregidas: {n}.",
-  "comun.faltaHoja": "No se encuentra la hoja {hoja}. Usa 🔧 Herramientas → 🧩 Revisar y reparar el catálogo.",
-  "comun.faltanColumnas": "A la hoja {hoja} le faltan columnas ({columnas}). Usa 🔧 Herramientas → 🧩 Revisar y reparar el catálogo.",
-  "comun.sinPreparar": "El catálogo todavía no está preparado. Usa 🔧 Herramientas → 🚀 Primeros pasos.",
+  "comun.faltaHoja": "No se encuentra la hoja {hoja}. Usa 🔧 Mantenimiento → 🧩 Revisar y reparar el catálogo.",
+  "comun.faltanColumnas": "A la hoja {hoja} le faltan columnas ({columnas}). Usa 🔧 Mantenimiento → 🧩 Revisar y reparar el catálogo.",
+  "comun.sinPreparar": "El catálogo todavía no está preparado. Usa 💠 CATÁLOGO → 🚀 Primeros pasos.",
   "mesa.titulo": "📝 Lo que falta",
   "mesa.encabezado": "📝 Lista de lo que falta",
   "mesa.intro": "Se arma una hoja con cada palabra a la que le falta traducción o audio. Ahí puedes escribir las traducciones, o tocar *📱 Abrir en la app* para grabar.",
