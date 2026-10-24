@@ -1,0 +1,45 @@
+<body>
+<a href="#vista" class="sr" data-i="visor.saltar">Saltar al contenido</a>
+<div id="lightbox" onclick="this.style.display='none'" role="dialog" data-i-attr="aria-label:visor.imagenAmpliada"><img id="lightbox-img" src="" alt=""></div>
+
+<header id="cabecera">
+    <div class="top-bar">
+        <div class="brand">
+            <div class="brand-fila"><img id="app-logo" class="logo oculto" alt=""><h1 id="app-title">…</h1></div>
+            <p id="app-sub" data-i="visor.cargando">Cargando…</p>
+        </div>
+        <div class="a11y-bar" role="group" data-i-attr="aria-label:visor.a11y">
+            <button class="a11y-btn" onclick="A11y.smaller()" data-i-attr="title:visor.a11y.menor|aria-label:visor.a11y.menor">A−</button>
+            <button class="a11y-btn" onclick="A11y.reset()" data-i-attr="title:visor.a11y.normal|aria-label:visor.a11y.normal">A</button>
+            <button class="a11y-btn" onclick="A11y.larger()" data-i-attr="title:visor.a11y.mayor|aria-label:visor.a11y.mayor">A+</button>
+            <button class="a11y-btn" id="btn-contrast" onclick="A11y.toggleContrast()" data-i-attr="title:visor.a11y.contraste|aria-label:visor.a11y.contraste">🌓</button>
+            <button class="a11y-btn" id="btn-interfaz" onclick="Interfaz.abrir()" data-i-attr="title:visor.interfaz.boton|aria-label:visor.interfaz.boton">🌐</button>
+            <button class="a11y-btn" id="btn-cambiar-base" onclick="Datos.cambiarCatalogo()" data-i-attr="title:visor.cambiarCatalogo|aria-label:visor.cambiarCatalogo">🔌</button>
+        </div>
+    </div>
+    <div class="lang-bar">
+        <label for="sel-lengua" data-i="visor.verPalabrasEn">Ver palabras en</label>
+        <select id="sel-lengua" class="modern-select" style="width:auto;min-width:160px;min-height:38px;padding:6px 10px" onchange="Datos.fijarLengua(this.value)"></select>
+        <span id="conn" class="conn" role="status" aria-live="polite">…</span>
+    </div>
+</header>
+
+<div id="avisos" class="avisos" role="region" aria-live="polite" data-i-attr="aria-label:visor.avisos" hidden></div>
+
+<nav class="secciones" id="nav" data-i-attr="aria-label:visor.secciones">
+    <button data-sec="explorar"  onclick="UI.ir('explorar')"><span class="i" aria-hidden="true">📚</span><span data-i="visor.sec.explorar">Explorar</span></button>
+    <button data-sec="aprender"  onclick="UI.ir('aprender')"><span class="i" aria-hidden="true">🎓</span><span data-i="visor.sec.aprender">Aprender</span></button>
+    <button data-sec="jugar"     onclick="UI.ir('jugar')"><span class="i" aria-hidden="true">🎲</span><span data-i="visor.sec.jugar">Jugar</span></button>
+    <button data-sec="imprimir"  onclick="UI.ir('imprimir')"><span class="i" aria-hidden="true">🖨️</span><span data-i="visor.sec.imprimir">Imprimir</span></button>
+    <button data-sec="colabora"  onclick="UI.ir('colabora')"><span class="i" aria-hidden="true">🤝</span><span data-i="visor.sec.colabora">Colabora</span></button>
+</nav>
+
+<main id="vista" tabindex="-1"></main>
+<footer id="pie" class="pie-visor" role="contentinfo"></footer>
+
+<div id="modal" class="modal-overlay" onclick="UI.clickFondo(event)" role="dialog" aria-modal="true" aria-labelledby="modal-body">
+    <div class="modal-content">
+        <button class="modal-close" onclick="UI.cerrarModal()" data-i-attr="aria-label:visor.cerrar">&times;</button>
+        <div id="modal-body"></div>
+    </div>
+</div>
