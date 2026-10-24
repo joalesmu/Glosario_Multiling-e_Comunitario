@@ -373,7 +373,7 @@ const Impresion = {
     },
     /** Abre la vista previa lista para imprimir. Las pistas propias se pueden escribir ahí mismo. */
     ventana({ titulo, paginas, desc, css = '', ajustes, orientacion = 'portrait', aviso = '' }) {
-        const v = window.open('', '_blank');
+        const v = VistaImpresion.abrir();
         if (!v) { msg(_ih('visor.imp.bloqueada')); return null; }
         const nHojas = (paginas.match(/<section class="hoja/g) || []).length;
         const hayEditables = /data-pista=/.test(paginas);
@@ -383,7 +383,7 @@ const Impresion = {
             <button onclick="print()">🖨️ ${_ih('visor.imp.boton')}</button>
             ${hayEditables ? `<span class="ayuda-ed">✍️ ${_ih('visor.imp.editables')}</span>` : ''}${aviso ? `<span class="aviso">⚠️ ${esc(aviso)}</span>` : ''}</div>${paginas}
             <script>(function(){
-              var op=window.opener;
+              var op=window.opener||(window.parent!==window?window.parent:null);
               document.addEventListener('focusout',function(e){var el=e.target;if(!el||!el.dataset||!el.dataset.pista||!op||!op.Pistas)return;
                 var v=op.Pistas.guardarPropia(el.dataset.pista,el.dataset.lengua,el.innerText);el.innerText=v;el.classList.toggle('vacia',!v);
                 [].slice.call(document.querySelectorAll('[data-pista="'+el.dataset.pista+'"][data-lengua="'+el.dataset.lengua+'"]')).forEach(function(o){if(o!==el){o.innerText=v;o.classList.toggle('vacia',!v);}});});
@@ -458,8 +458,10 @@ const Actividades = {
             <button class="btn btn-secondary btn-mini" data-of="${esc(a.id)}">📥</button>
             <button class="btn btn-secondary btn-mini" data-bo="${esc(a.id)}" aria-label="${esc(_i('visor.borrar'))}">🗑️</button></div></div>`;
         UI.abrir(`<div class="form"><h2 class="modal-titulo">📂 ${_ih('visor.act.titulo')}</h2>
-            <div class="aviso-local" role="note"><b>⚠️ ${_ih('visor.act.aviso.t')}</b>
+            <div class="aviso-local" role="note">${Instalar.instalada() ? `<b>⚠️ ${_ih('visor.act.avisoApp.t')}</b>
+                <p>${_ih('visor.act.aviso.1')}</p><ul><li>${_ih('visor.act.avisoApp.c1')}</li><li>${_ih('visor.act.avisoApp.c2')}</li><li>${_ih('visor.act.avisoApp.c3')}</li>${Instalar.esIOS ? `<li>${_ih('visor.act.avisoApp.ios')}</li>` : ''}</ul>` : `<b>⚠️ ${_ih('visor.act.aviso.t')}</b>
                 <p>${_ih('visor.act.aviso.1')}</p><ul><li>${_ih('visor.act.aviso.c1')}</li><li>${_ih('visor.act.aviso.c2')}</li><li>${_ih('visor.act.aviso.c3')}</li><li>${_ih('visor.act.aviso.c4')}</li></ul>
+                <p class="nota">${_ih('visor.act.aviso.instalar')}</p>`}
                 <p>${_ih('visor.act.aviso.resp')}</p><p>${_ih('visor.act.aviso.recup')}</p>
                 <p class="nota">${resp ? _ih('visor.act.ultimoRespaldo', { n: dias }) : _ih('visor.act.sinRespaldo')}</p></div>
             ${t.length && (dias === null || dias > 30) && t.some(a => a.fija) ? `<div class="error-box">💾 ${_ih('visor.act.recordar')}</div>` : ''}

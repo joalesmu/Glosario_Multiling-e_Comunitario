@@ -19,6 +19,7 @@ Números de versión: `CONFIG.VERSION` en `Codigo.gs`, `VERSION_VISOR` en el vis
 - **Perfiles locales** con apodo y dibujo (nunca el nombre real) para aparatos compartidos; el repaso con tarjetas también va por perfil. El docente revisa el avance en el propio aparato, perfil por perfil.
 - **Compartir solo si la persona quiere:** resumen sin nombres por el menú de compartir del aparato, o una copia del progreso para pasarla a otro aparato. Nada se envía automáticamente.
 - Cada catálogo guarda su progreso por separado.
+- **En la app instalada:** la vista para imprimir se abre dentro de la misma app (las ventanas nuevas pueden fallar en apps instaladas, sobre todo en iPhone); en el navegador, si se bloquean las ventanas emergentes, también. El botón «atrás» del teléfono cierra la ventana o la vista abierta en lugar de salir del visor. Los avisos sobre dónde se guardan las actividades y el progreso se adaptan a si el visor está instalado o en el navegador.
 - **🔌 Cambiar de catálogo** acepta el enlace de invitación completo (con dirección y clave), pegado o con «📋 Pegar enlace». Útil en la app instalada, sobre todo en iPhone, donde los enlaces suelen abrirse en Safari.
 
 ### Hoja del catálogo

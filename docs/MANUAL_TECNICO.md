@@ -295,6 +295,8 @@ Los objetos son constantes globales. Las ventanas de vista previa de impresión 
 - IndexedDB `catalogo-lenguas-medios`: imágenes y audios de 📥 Llevar sin conexión, la cola de propuestas sin enviar y, desde la 1.2, la copia del catálogo (`<dirección>|cat|datos`; la de `localStorage` `cat:<dirección>` se migra sola).
 - Progreso (1.2), en `localStorage`: `perfiles` y `perfil_actual` (del dispositivo), `prog:<dirección>:<perfil>` (vistas, escuchadas, favoritas, partidas, días) y el repaso `repaso:<dirección>:<lengua>[:<perfil>]`. El perfil `p0` («Este aparato») no lleva sufijo, para conservar el repaso de versiones anteriores.
 - **Regla:** nada de esto se envía. Solo sale del aparato si la persona toca «Compartir mi resumen» o «Guardar copia de mi progreso». No se piden ni guardan nombres reales.
+- Vistas para imprimir: usa siempre `VistaImpresion.abrir()` (no `window.open`): en la app instalada las muestra en un iframe dentro de la página; los scripts de la vista llegan al visor con `window.opener || window.parent`.
+- Botón «atrás»: `UI.abrir` y `VistaImpresion` agregan un paso al historial (`Atras`); al cerrar se quita. No uses `history.pushState` en otro lado.
 - La app instalada: `manifest.webmanifest`, `sw.js` (guarda solo los archivos del visor; las consultas al catálogo pasan directo) e `iconos/`.
 
 Cambiar el nombre de una clave de almacenamiento hace que las personas «pierdan» lo guardado. Si hace falta, lee la clave vieja y migra.

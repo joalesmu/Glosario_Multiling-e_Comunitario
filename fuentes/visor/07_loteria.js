@@ -321,7 +321,7 @@ const Loteria = (() => {
     }
     /** Abre una ventana con hojas listas para imprimir; espera a que carguen las imágenes. */
     function ventanaImpresion(titulo, paginas, orientacion, descripcion, css, aj) {
-        const v = window.open('', '_blank');
+        const v = VistaImpresion.abrir();
         if (!v) return msg(_ih('visor.imp.bloqueada'), 'error');
         v.document.write(`<!DOCTYPE html><html lang="${esc(document.documentElement.lang || 'es')}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
             <title>${esc(titulo)}</title><style>${Impresion.css(aj, orientacion)}${css}</style></head><body>

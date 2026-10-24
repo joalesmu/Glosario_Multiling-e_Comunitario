@@ -3,7 +3,7 @@
    Solo guarda los archivos del visor. Los datos del catálogo, las imágenes y los audios los guarda el propio visor
    (copia del catálogo y «📥 Descargar para usar sin conexión»); las consultas al catálogo pasan directo, sin tocarse.
    Al publicar una versión nueva, cambia VERSION: el visor avisa «Hay una versión nueva». */
-const VERSION = 'visor-1.2';
+const VERSION = 'visor-1.2b';
 const ARCHIVOS = ['./', './index.html', './manifest.webmanifest', './iconos/icono-192.png', './iconos/icono-512.png', './iconos/icono-maskable-512.png', './iconos/apple-touch-icon.png', './iconos/favicon-32.png'];
 
 self.addEventListener('install', e => {

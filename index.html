@@ -197,7 +197,11 @@
         .prog-dato .ico { font-size:1.4em; } .prog-dato b { font-size:1.6em; color:var(--primary); line-height:1.2; } .prog-dato span:last-child { font-size:.85em; color:var(--text-sub); }
         .prog-lista { display:flex; flex-direction:column; gap:4px; }
         .prog-fila { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; padding:6px 8px; border-bottom:1px solid var(--border); font-size:.92em; }
-        .toast-accion { display:flex; align-items:center; border-radius:14px; z-index:3000; }
+        .vista-imp { position:fixed; inset:0; z-index:2500; background:#fff; display:flex; flex-direction:column; }
+        .vista-imp-barra { display:flex; gap:10px; align-items:center; padding:8px 12px calc(8px); padding-top:max(8px, env(safe-area-inset-top)); background:var(--bg-card); border-bottom:1px solid var(--border); flex-wrap:wrap; }
+        .vista-imp iframe { flex:1; width:100%; border:0; background:#fff; }
+        body.con-vista-imp { overflow:hidden; }
+        .toast.toast-accion { display:flex; align-items:center; border-radius:14px; pointer-events:auto; animation:none; }   /* aviso con botón: sí recibe toques */
         .toast { position:fixed; left:50%; bottom:calc(var(--nav-h) + 16px); transform:translateX(-50%); background:var(--text-main); color:var(--bg-body); padding:10px 18px; border-radius:30px; font-weight:700; z-index:6000; max-width:92vw; text-align:center; animation:popUp .2s; pointer-events:none; }
         .anuncio { position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:6000; background:var(--success); color:#fff; padding:12px 22px; border-radius:40px; font-weight:800; box-shadow:var(--shadow); pointer-events:none; max-width:92vw; text-align:center; animation:entra .4s ease-out, sale .5s ease-in 3.8s forwards; }
         @keyframes entra { from{transform:translate(-50%,-30px);opacity:0} to{transform:translate(-50%,0);opacity:1} }
@@ -437,9 +441,15 @@ const V_ES = {
 "visor.act.aviso.c2": "usas una ventana privada o de incógnito (al cerrarla se borra todo);",
 "visor.act.aviso.c3": "abres el visor en otro navegador, otro teléfono u otra computadora (ahí no estarán);",
 "visor.act.aviso.c4": "en algunos teléfonos, sobre todo iPhone, pasan varias semanas sin abrir el visor.",
+"visor.act.aviso.instalar": "Si instalas el visor como app (botón ⬇️ arriba), ya no se borran por dejar de usarlo.",
 "visor.act.aviso.recup": "*Para recuperarlas:* toca *📂 Abrir archivo*, elige ese archivo y tus actividades vuelven a aparecer. Sirve también en otro equipo o para compartirlas con otra maestra o maestro.",
 "visor.act.aviso.resp": "*Te recomendamos guardar un respaldo:* toca *💾 Guardar en archivo*. Se descarga un archivo pequeño a tu teléfono o computadora; guárdalo en una carpeta que ubiques, o mándatelo por correo o WhatsApp.",
 "visor.act.aviso.t": "Tus actividades se guardan solo en este navegador",
+"visor.act.avisoApp.c1": "se borran los datos de la app o del navegador, o se usa una app de limpieza;",
+"visor.act.avisoApp.c2": "desinstalas la app;",
+"visor.act.avisoApp.c3": "cambias de teléfono o computadora (ahí no estarán);",
+"visor.act.avisoApp.ios": "en iPhone y iPad, la app instalada y Safari guardan por separado: lo que hagas en uno no aparece en el otro.",
+"visor.act.avisoApp.t": "Tus actividades se guardan solo en este aparato",
 "visor.act.basta": "Basta",
 "visor.act.basta.d": "Una letra, varias categorías: ¿cuántas palabras conoces?",
 "visor.act.bastaImp": "Basta en papel",
@@ -483,7 +493,7 @@ const V_ES = {
 "visor.act.inicialImp.d": "Encierra o escribe la primera letra de cada palabra.",
 "visor.act.irCatalogo": "Ir a ese catálogo",
 "visor.act.lista": "Tus actividades",
-"visor.act.lleno": "El navegador no tiene más espacio para guardar. Guarda un respaldo en archivo y borra actividades que ya no uses.",
+"visor.act.lleno": "El aparato no tiene más espacio para guardar. Guarda un respaldo en archivo y borra actividades que ya no uses.",
 "visor.act.loteria": "Lotería",
 "visor.act.loteria.d": "En pantalla, a distancia, impresa o descargada para jugar sin internet.",
 "visor.act.loteriaImp": "Lotería para imprimir",
@@ -764,6 +774,7 @@ const V_ES = {
 "visor.imp.ajustes.d": "Se recuerdan en este dispositivo para la próxima vez.",
 "visor.imp.bloqueada": "El navegador bloqueó la ventana de impresión. Permite las ventanas emergentes para este sitio.",
 "visor.imp.boton": "Imprimir o guardar PDF",
+"visor.imp.cerrarVista": "Cerrar",
 "visor.imp.codigo": "Hoja {c}",
 "visor.imp.creditos": "Incluir créditos del visor en el pie",
 "visor.imp.editables": "Las pistas con borde azul se pueden escribir aquí antes de imprimir.",
@@ -791,6 +802,8 @@ const V_ES = {
 "visor.imp.tinta.color": "Color",
 "visor.imp.vertical": "Imprime en *Carta*, *vertical*, escala 100 %.",
 "visor.imp.verticalCorto": "vertical, escala 100 %",
+"visor.imp.vista": "Vista para imprimir",
+"visor.imp.vistaApp": "Revisa las hojas y usa el botón 🖨️ de la vista para imprimir o guardar en PDF.",
 "visor.imp2.armaSilabas": "Arma con sílabas",
 "visor.imp2.armaSilabas.d": "Cuatro palabras por hoja: las sílabas aparecen desordenadas para recortar y pegar.",
 "visor.imp2.armaSilabas.idea1": "Formar palabras nuevas con las sílabas sobrantes.",
@@ -1193,7 +1206,7 @@ const V_ES = {
 "visor.off.fallos": "{n} no se pudieron guardar; vuelve a intentarlo con mejor señal.",
 "visor.off.faltanImg": "Sin conexión: {n} imagen(es) no se verán. Usa 📥 Llevar sin conexión cuando tengas internet.",
 "visor.off.listo": "Listo: {i} imagen(es) y {a} audio(s) guardados en este dispositivo.",
-"visor.off.nota": "Necesita internet ahora. Se guarda solo en este dispositivo y puede borrarse si se limpian los datos del navegador.",
+"visor.off.nota": "Necesita internet ahora. Se guarda solo en este aparato y puede borrarse si se borran los datos del navegador o de la app.",
 "visor.off.sinRed": "Ahora no hay conexión. Conéctate y vuelve a intentar.",
 "visor.off.titulo": "Llevar sin conexión",
 "visor.opcion": "Opción",
@@ -1258,7 +1271,7 @@ const V_ES = {
 "visor.prog.nuevo": "Nuevo perfil",
 "visor.prog.partidas7": "partidas esta semana",
 "visor.prog.perfil": "Perfil",
-"visor.prog.privado": "Se guarda solo en este aparato y nunca se envía. Compartir es siempre decisión tuya.",
+"visor.prog.privado": "Se guarda solo en este aparato y nunca se envía. Compartir es siempre decisión tuya. Si cambias de teléfono, usa «Guardar copia de mi progreso» antes.",
 "visor.prog.quitarPerfil": "Quitar perfil",
 "visor.prog.quitarPerfil.c": "¿Quitar el perfil {perfil} y todo su progreso en este aparato?",
 "visor.prog.recuperar": "Recuperar una copia",
@@ -2200,6 +2213,44 @@ const Pantalla = {
     liberar() { try { this.lock && this.lock.release(); } catch (e) {} this.lock = null; }
 };
 
+/** Botón «atrás» del teléfono: cierra la ventana o la vista de impresión abierta en lugar de salir del visor (importante en la app instalada). */
+const Atras = {
+    ignorar: false,
+    abierto() { return $('modal').style.display === 'flex' || !!$('vista-imp') || $('lightbox').style.display === 'flex'; },
+    abrir() { if (!(history.state && history.state.capa)) history.pushState({ capa: true }, ''); },
+    cerrar() { if (this.ignorar) return; if (history.state && history.state.capa && !this.abierto()) { this.ignorar = true; history.back(); } },   // nunca dos pasos atrás pendientes
+    alVolver() {
+        if (this.ignorar) { this.ignorar = false; if (this.abierto()) this.abrir(); return; }
+        if ($('lightbox').style.display === 'flex') { $('lightbox').style.display = 'none'; if (this.abierto()) this.abrir(); return; }
+        if ($('vista-imp')) { VistaImpresion.cerrar(true); if (this.abierto()) this.abrir(); return; }
+        if ($('modal').style.display === 'flex') {
+            if (Juego.activo && !confirm(_i('visor.salirActividad'))) return this.abrir();
+            UI.cerrarModal(true);
+        }
+    }
+};
+window.addEventListener('popstate', () => Atras.alVolver());
+
+/** Vista para imprimir: en el navegador, una ventana nueva; en la app instalada (o si el navegador bloquea ventanas), dentro de la misma página. */
+const VistaImpresion = {
+    abrir() {
+        const enApp = typeof Instalar !== 'undefined' && Instalar.instalada();
+        if (!enApp) { const v = window.open('', '_blank'); if (v) return v; }
+        this.cerrar(true);
+        const d = document.createElement('div'); d.id = 'vista-imp'; d.className = 'vista-imp'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true');
+        d.innerHTML = `<div class="vista-imp-barra"><button class="btn btn-secondary" id="vi-cerrar">✕ ${_ih('visor.imp.cerrarVista')}</button><span class="nota">${_ih('visor.imp.vistaApp')}</span></div><iframe title="${esc(_i('visor.imp.vista'))}"></iframe>`;
+        document.body.appendChild(d); document.body.classList.add('con-vista-imp');
+        $('vi-cerrar').addEventListener('click', () => this.cerrar());
+        Atras.abrir();
+        return d.querySelector('iframe').contentWindow;
+    },
+    cerrar(desdeAtras) {
+        const d = $('vista-imp'); if (!d) return;
+        d.remove(); document.body.classList.remove('con-vista-imp');
+        if (!desdeAtras) Atras.cerrar();
+    }
+};
+
 const UI = {
     seccion: 'explorar',
     ajustarCabecera() { const h = $('cabecera'); if (h) document.documentElement.style.setProperty('--hdr-h', h.offsetHeight + 'px'); },
@@ -2226,13 +2277,14 @@ const UI = {
     },
     abrir(html, { ancho = false, completa = false } = {}) {
         const m = $('modal');
+        if (m.style.display !== 'flex') Atras.abrir();
         m.classList.toggle('ancho', ancho); m.classList.toggle('completa', completa);
         $('modal-body').innerHTML = html;
         m.style.display = 'flex';
         m.querySelector('.modal-content').scrollTop = 0;
     },
     cuerpo(html) { $('modal-body').innerHTML = html; $('modal').querySelector('.modal-content').scrollTop = 0; },
-    cerrarModal() { $('modal').style.display = 'none'; Juego.detener(); },
+    cerrarModal(desdeAtras) { const abierto = $('modal').style.display === 'flex'; $('modal').style.display = 'none'; Juego.detener(); if (abierto && !desdeAtras) Atras.cerrar(); },
     clickFondo(e) { if (e.target.id === 'modal' && !Juego.activo) this.cerrarModal(); },
     toast(texto, ms = 2600) { const d = document.createElement('div'); d.className = 'toast'; d.setAttribute('role', 'status'); d.textContent = texto; document.body.appendChild(d); setTimeout(() => d.remove(), ms); },
     anunciar(texto) {
@@ -3982,7 +4034,7 @@ const Loteria = (() => {
     }
     /** Abre una ventana con hojas listas para imprimir; espera a que carguen las imágenes. */
     function ventanaImpresion(titulo, paginas, orientacion, descripcion, css, aj) {
-        const v = window.open('', '_blank');
+        const v = VistaImpresion.abrir();
         if (!v) return msg(_ih('visor.imp.bloqueada'), 'error');
         v.document.write(`<!DOCTYPE html><html lang="${esc(document.documentElement.lang || 'es')}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
             <title>${esc(titulo)}</title><style>${Impresion.css(aj, orientacion)}${css}</style></head><body>
@@ -7107,7 +7159,7 @@ const Impresion = {
     },
     /** Abre la vista previa lista para imprimir. Las pistas propias se pueden escribir ahí mismo. */
     ventana({ titulo, paginas, desc, css = '', ajustes, orientacion = 'portrait', aviso = '' }) {
-        const v = window.open('', '_blank');
+        const v = VistaImpresion.abrir();
         if (!v) { msg(_ih('visor.imp.bloqueada')); return null; }
         const nHojas = (paginas.match(/<section class="hoja/g) || []).length;
         const hayEditables = /data-pista=/.test(paginas);
@@ -7117,7 +7169,7 @@ const Impresion = {
             <button onclick="print()">🖨️ ${_ih('visor.imp.boton')}</button>
             ${hayEditables ? `<span class="ayuda-ed">✍️ ${_ih('visor.imp.editables')}</span>` : ''}${aviso ? `<span class="aviso">⚠️ ${esc(aviso)}</span>` : ''}</div>${paginas}
             <script>(function(){
-              var op=window.opener;
+              var op=window.opener||(window.parent!==window?window.parent:null);
               document.addEventListener('focusout',function(e){var el=e.target;if(!el||!el.dataset||!el.dataset.pista||!op||!op.Pistas)return;
                 var v=op.Pistas.guardarPropia(el.dataset.pista,el.dataset.lengua,el.innerText);el.innerText=v;el.classList.toggle('vacia',!v);
                 [].slice.call(document.querySelectorAll('[data-pista="'+el.dataset.pista+'"][data-lengua="'+el.dataset.lengua+'"]')).forEach(function(o){if(o!==el){o.innerText=v;o.classList.toggle('vacia',!v);}});});
@@ -7192,8 +7244,10 @@ const Actividades = {
             <button class="btn btn-secondary btn-mini" data-of="${esc(a.id)}">📥</button>
             <button class="btn btn-secondary btn-mini" data-bo="${esc(a.id)}" aria-label="${esc(_i('visor.borrar'))}">🗑️</button></div></div>`;
         UI.abrir(`<div class="form"><h2 class="modal-titulo">📂 ${_ih('visor.act.titulo')}</h2>
-            <div class="aviso-local" role="note"><b>⚠️ ${_ih('visor.act.aviso.t')}</b>
+            <div class="aviso-local" role="note">${Instalar.instalada() ? `<b>⚠️ ${_ih('visor.act.avisoApp.t')}</b>
+                <p>${_ih('visor.act.aviso.1')}</p><ul><li>${_ih('visor.act.avisoApp.c1')}</li><li>${_ih('visor.act.avisoApp.c2')}</li><li>${_ih('visor.act.avisoApp.c3')}</li>${Instalar.esIOS ? `<li>${_ih('visor.act.avisoApp.ios')}</li>` : ''}</ul>` : `<b>⚠️ ${_ih('visor.act.aviso.t')}</b>
                 <p>${_ih('visor.act.aviso.1')}</p><ul><li>${_ih('visor.act.aviso.c1')}</li><li>${_ih('visor.act.aviso.c2')}</li><li>${_ih('visor.act.aviso.c3')}</li><li>${_ih('visor.act.aviso.c4')}</li></ul>
+                <p class="nota">${_ih('visor.act.aviso.instalar')}</p>`}
                 <p>${_ih('visor.act.aviso.resp')}</p><p>${_ih('visor.act.aviso.recup')}</p>
                 <p class="nota">${resp ? _ih('visor.act.ultimoRespaldo', { n: dias }) : _ih('visor.act.sinRespaldo')}</p></div>
             ${t.length && (dias === null || dias > 30) && t.some(a => a.fija) ? `<div class="error-box">💾 ${_ih('visor.act.recordar')}</div>` : ''}

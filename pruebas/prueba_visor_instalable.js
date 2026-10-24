@@ -74,6 +74,23 @@ async function contexto(b, extra = {}) {
   p.on('dialog', d => d.accept());
   await p.setInputFiles('#pf-archivo', ruta); await p.waitForTimeout(500);
   ok(await p.evaluate(() => Progreso.resumen().vistas) === 1, 'copia recuperada en otro perfil');
+  // Botón «atrás»: cierra la ventana en vez de salir del visor
+  await p.evaluate(() => UI.cerrarModal()); await p.evaluate(() => Ficha.abrir('p2'));
+  await p.goBack(); await p.waitForTimeout(300);
+  ok(await p.evaluate(() => $('modal').style.display !== 'flex') && p.url().startsWith(BASE), 'atrás cierra la ficha y sigue en el visor');
+  await p.evaluate(() => { Ficha.abrir('p3'); UI.cerrarModal(); }); await p.waitForTimeout(300);
+  ok(await p.evaluate(() => !(history.state && history.state.capa)), 'cerrar con ✕ no deja pasos de más en «atrás»');
+  // App instalada: avisos adaptados y vista de impresión dentro de la página
+  await p.evaluate(() => { Instalar.instalada = () => true; Actividades.abrir(); });
+  ok((await p.textContent('#modal-body')).includes('desinstalas la app'), 'aviso de actividades para la app instalada');
+  await p.evaluate(() => UI.cerrarModal());
+  await p.evaluate(() => Impresos.abrir('glosario')); await p.waitForTimeout(200); await p.click('#im-ok'); await p.waitForTimeout(1200);
+  const hojas = await p.evaluate(() => $('vista-imp') ? $('vista-imp').querySelector('iframe').contentDocument.querySelectorAll('section.hoja').length : -1);
+  ok(hojas > 0, 'app instalada: vista de impresión dentro de la página (' + hojas + ' hoja/s)');
+  await p.goBack(); await p.waitForTimeout(400);
+  ok(await p.evaluate(() => !$('vista-imp')), 'atrás cierra la vista de impresión');
+  await p.evaluate(() => { Instalar.instalada = () => false; Actividades.abrir(); });
+  ok((await p.textContent('#modal-body')).includes('ventana privada'), 'en el navegador, el aviso de siempre'); await p.evaluate(() => UI.cerrarModal());
   ok(err.length === 0, 'sin errores: ' + err.join(' | '));
   // Sin conexión: abre desde lo guardado
   await p.evaluate(() => Perfiles.elegir('p0'));

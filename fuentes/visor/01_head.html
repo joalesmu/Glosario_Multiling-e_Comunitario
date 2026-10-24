@@ -197,7 +197,11 @@
         .prog-dato .ico { font-size:1.4em; } .prog-dato b { font-size:1.6em; color:var(--primary); line-height:1.2; } .prog-dato span:last-child { font-size:.85em; color:var(--text-sub); }
         .prog-lista { display:flex; flex-direction:column; gap:4px; }
         .prog-fila { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; padding:6px 8px; border-bottom:1px solid var(--border); font-size:.92em; }
-        .toast-accion { display:flex; align-items:center; border-radius:14px; z-index:3000; }
+        .vista-imp { position:fixed; inset:0; z-index:2500; background:#fff; display:flex; flex-direction:column; }
+        .vista-imp-barra { display:flex; gap:10px; align-items:center; padding:8px 12px calc(8px); padding-top:max(8px, env(safe-area-inset-top)); background:var(--bg-card); border-bottom:1px solid var(--border); flex-wrap:wrap; }
+        .vista-imp iframe { flex:1; width:100%; border:0; background:#fff; }
+        body.con-vista-imp { overflow:hidden; }
+        .toast.toast-accion { display:flex; align-items:center; border-radius:14px; pointer-events:auto; animation:none; }   /* aviso con botón: sí recibe toques */
         .toast { position:fixed; left:50%; bottom:calc(var(--nav-h) + 16px); transform:translateX(-50%); background:var(--text-main); color:var(--bg-body); padding:10px 18px; border-radius:30px; font-weight:700; z-index:6000; max-width:92vw; text-align:center; animation:popUp .2s; pointer-events:none; }
         .anuncio { position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:6000; background:var(--success); color:#fff; padding:12px 22px; border-radius:40px; font-weight:800; box-shadow:var(--shadow); pointer-events:none; max-width:92vw; text-align:center; animation:entra .4s ease-out, sale .5s ease-in 3.8s forwards; }
         @keyframes entra { from{transform:translate(-50%,-30px);opacity:0} to{transform:translate(-50%,0);opacity:1} }

@@ -667,6 +667,44 @@ const Pantalla = {
     liberar() { try { this.lock && this.lock.release(); } catch (e) {} this.lock = null; }
 };
 
+/** Botón «atrás» del teléfono: cierra la ventana o la vista de impresión abierta en lugar de salir del visor (importante en la app instalada). */
+const Atras = {
+    ignorar: false,
+    abierto() { return $('modal').style.display === 'flex' || !!$('vista-imp') || $('lightbox').style.display === 'flex'; },
+    abrir() { if (!(history.state && history.state.capa)) history.pushState({ capa: true }, ''); },
+    cerrar() { if (this.ignorar) return; if (history.state && history.state.capa && !this.abierto()) { this.ignorar = true; history.back(); } },   // nunca dos pasos atrás pendientes
+    alVolver() {
+        if (this.ignorar) { this.ignorar = false; if (this.abierto()) this.abrir(); return; }
+        if ($('lightbox').style.display === 'flex') { $('lightbox').style.display = 'none'; if (this.abierto()) this.abrir(); return; }
+        if ($('vista-imp')) { VistaImpresion.cerrar(true); if (this.abierto()) this.abrir(); return; }
+        if ($('modal').style.display === 'flex') {
+            if (Juego.activo && !confirm(_i('visor.salirActividad'))) return this.abrir();
+            UI.cerrarModal(true);
+        }
+    }
+};
+window.addEventListener('popstate', () => Atras.alVolver());
+
+/** Vista para imprimir: en el navegador, una ventana nueva; en la app instalada (o si el navegador bloquea ventanas), dentro de la misma página. */
+const VistaImpresion = {
+    abrir() {
+        const enApp = typeof Instalar !== 'undefined' && Instalar.instalada();
+        if (!enApp) { const v = window.open('', '_blank'); if (v) return v; }
+        this.cerrar(true);
+        const d = document.createElement('div'); d.id = 'vista-imp'; d.className = 'vista-imp'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true');
+        d.innerHTML = `<div class="vista-imp-barra"><button class="btn btn-secondary" id="vi-cerrar">✕ ${_ih('visor.imp.cerrarVista')}</button><span class="nota">${_ih('visor.imp.vistaApp')}</span></div><iframe title="${esc(_i('visor.imp.vista'))}"></iframe>`;
+        document.body.appendChild(d); document.body.classList.add('con-vista-imp');
+        $('vi-cerrar').addEventListener('click', () => this.cerrar());
+        Atras.abrir();
+        return d.querySelector('iframe').contentWindow;
+    },
+    cerrar(desdeAtras) {
+        const d = $('vista-imp'); if (!d) return;
+        d.remove(); document.body.classList.remove('con-vista-imp');
+        if (!desdeAtras) Atras.cerrar();
+    }
+};
+
 const UI = {
     seccion: 'explorar',
     ajustarCabecera() { const h = $('cabecera'); if (h) document.documentElement.style.setProperty('--hdr-h', h.offsetHeight + 'px'); },
@@ -693,13 +731,14 @@ const UI = {
     },
     abrir(html, { ancho = false, completa = false } = {}) {
         const m = $('modal');
+        if (m.style.display !== 'flex') Atras.abrir();
         m.classList.toggle('ancho', ancho); m.classList.toggle('completa', completa);
         $('modal-body').innerHTML = html;
         m.style.display = 'flex';
         m.querySelector('.modal-content').scrollTop = 0;
     },
     cuerpo(html) { $('modal-body').innerHTML = html; $('modal').querySelector('.modal-content').scrollTop = 0; },
-    cerrarModal() { $('modal').style.display = 'none'; Juego.detener(); },
+    cerrarModal(desdeAtras) { const abierto = $('modal').style.display === 'flex'; $('modal').style.display = 'none'; Juego.detener(); if (abierto && !desdeAtras) Atras.cerrar(); },
     clickFondo(e) { if (e.target.id === 'modal' && !Juego.activo) this.cerrarModal(); },
     toast(texto, ms = 2600) { const d = document.createElement('div'); d.className = 'toast'; d.setAttribute('role', 'status'); d.textContent = texto; document.body.appendChild(d); setTimeout(() => d.remove(), ms); },
     anunciar(texto) {
